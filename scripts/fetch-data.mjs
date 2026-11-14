@@ -727,6 +727,7 @@ async function build() {
 
   try {
     const squad = await squadFile();
+    globalThis.lastSquad = squad;
     try {
       const c = await careers(squad.players);
       await writeFile(`${OUT_DIR}/careers.json`, JSON.stringify(c));
@@ -755,7 +756,22 @@ async function build() {
       console.warn(`tables ${id}: ${e.message}`);
     }
   }
-  // 365Scores sometimes returns no Barcelona rankings for a competition: keep the last published ones.
+  // 365Scores sometimes returns no Barcelona rankings for a competition: build them from our own season totals.
+  for (const t of tables) {
+    if (t.barcaRankings.length || !globalThis.lastSquad) continue;
+    const by = (key, name, digits = 0) => {
+      const rows = globalThis.lastSquad.players
+        .map((p) => ({ p, c: p.byCompetition?.find((x) => x.competition === t.competition) }))
+        .filter(({ c }) => c && c[key])
+        .sort((a, b) => b.c[key] - a.c[key])
+        .slice(0, 10)
+        .map(({ p, c }) => ({ playerId: p.id, name: p.name, barca: true, value: digits ? c[key].toFixed(digits) : c[key], photo: p.photo }));
+      return rows.length ? { name, rows } : undefined;
+    };
+    t.barcaRankings = [by('goals', 'שערים'), by('assists', 'בישולים'), by('rating', '365 מצטיינים', 2), by('yellow', 'כרטיסים צהובים'), by('minutes', 'דקות משחק')].filter(Boolean);
+    if (t.barcaRankings.length) console.warn(`tables ${t.competition}: built Barcelona rankings from season totals`);
+  }
+  // Still nothing: keep the last published ones.
   if (tables.some((t) => !t.barcaRankings.length)) {
     const prev = await fetch(LIVE_SITE + 'data/tables.json').then((r) => (r.ok ? r.json() : [])).catch(() => []);
     for (const t of tables) {
