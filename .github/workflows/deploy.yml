@@ -36,7 +36,6 @@ jobs:
         run: node scripts/fetch-data.mjs
         timeout-minutes: 8
         env:
-          # Optional: better Hebrew news summaries. Add it under Settings → Secrets → Actions.
           FORCE_BACKUP: ${{ inputs.force_backup && '1' || '' }}
       - run: npm run build
       # SPA fallback so deep links (e.g. /Barca/matches) load the app
