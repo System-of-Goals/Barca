@@ -7,6 +7,15 @@ import '@fontsource/heebo/800.css';
 import '@fontsource/heebo/900.css';
 import './styles.css';
 import { App } from './App';
+import { registerSW } from 'virtual:pwa-register';
+
+// Check for a new version on every visit and every 10 minutes; reload as soon as it's ready.
+registerSW({
+  immediate: true,
+  onRegisteredSW(_url, reg) {
+    if (reg) setInterval(() => reg.update(), 10 * 60 * 1000);
+  },
+});
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

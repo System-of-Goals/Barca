@@ -11,6 +11,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: false, // registered in src/main.tsx
       includeAssets: ['icons/crest.svg'],
       manifest: {
         name: 'ברצלונה',
@@ -31,6 +32,15 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Switch to a new version as soon as it is published, instead of on the next visit.
+        skipWaiting: true,
+        clientsClaim: true,
+        cleanupOutdatedCaches: true,
+        // Data files change every 15 minutes: always ask the network first.
+        runtimeCaching: [
+          { urlPattern: /\/data\/.*\.json$/, handler: 'NetworkFirst', options: { cacheName: 'data', networkTimeoutSeconds: 5 } },
+        ],
+        globIgnores: ['data/**', 'img/**'],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         navigateFallback: `${base}index.html`,
       },
