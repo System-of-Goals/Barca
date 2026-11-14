@@ -68,6 +68,7 @@ const TOPICS = [
   { topic: 'משחקים', re: /\bpartido|previa|cr[oó]nica|alineaci|\bgol(es)?\b|\bgoals?\b|\bmatch|victoria|derrota|empate|\bwin\b|\bdraw\b|lineup|cl[aá]sico|expuls|red card|jornada|vs\.?\s/i },
 ];
 const topicOf = (t) => TOPICS.find((x) => x.re.test(t))?.topic ?? 'מועדון';
+const otherSection = (t) => /f[uú]tbol sala|futsal|baloncesto|basket|balonmano|handball|hockey|femen|women|wom[ae]n's|liga f\b|bar[cç]a atl[eè]tic|juvenil|el ?pozo/i.test(t);
 const aboutBarca = (t) => /bar[cç]a|barcelona|blaugrana|azulgrana|culé|cule|flick|camp nou|yamal|lamine|pedri|raphinha|lewandowski|cubars|de jong|olmo|ferm[ií]n|gavi|kound/i.test(t);
 
 // ---------- translation ----------
@@ -154,7 +155,7 @@ export async function collectNews() {
   }
 
   const cutoff = Date.now() - MAX_AGE_H * 3600 * 1000;
-  const stories = [...previous.filter((p) => new Date(p.publishedAt).getTime() > cutoff)];
+  const stories = [...previous.filter((p) => new Date(p.publishedAt).getTime() > cutoff && !otherSection(p.original ?? ''))];
   let fromMd = 0;
   const picked = [];
   // Mundo Deportivo first, so its version (with a summary) leads a merged story.
@@ -162,7 +163,7 @@ export async function collectNews() {
   for (const it of fresh) {
     if (!it.title || isNaN(new Date(it.publishedAt)) || new Date(it.publishedAt).getTime() < cutoff) continue;
     if (!aboutBarca(`${it.title} ${it.summary}`)) continue;
-    if (/f[uú]tbol sala|futsal|baloncesto|basket|balonmano|handball|hockey|femen|women|wom[ae]n's|liga f\b|bar[cç]a atl[eè]tic|juvenil/i.test(`${it.title} ${it.summary}`)) continue;
+    if (otherSection(`${it.title} ${it.summary}`)) continue;
     const same = stories.find((s) => similar(s.original, it.title)) ?? picked.find((p) => similar(p.it.title, it.title));
     if (same) {
       if (same.sources && !same.sources.some((s) => s.name === it.source)) same.sources.push({ name: it.source, url: it.url });
