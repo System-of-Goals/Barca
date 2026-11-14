@@ -44,6 +44,8 @@ export interface NewsItem {
   title: string; // first line of the post
   text?: string; // short preview
   media?: 'photo' | 'video';
+  image?: string; // thumbnail on Telegram's image server
+  hasText?: boolean;
   source: string; // channel name
   publishedAt: string; // ISO
   url: string; // https://t.me/barcamaniail/1234

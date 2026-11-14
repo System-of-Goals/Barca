@@ -31,6 +31,8 @@ async function readChannel(before) {
     if (!post || !time) continue;
     const text = decode(block.match(/class="tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? '');
     const photo = /tgme_widget_message_photo/.test(block);
+    // Photo or video thumbnail, served by Telegram's own image server (not copied to our site).
+    const image = block.match(/tgme_widget_message_(?:photo_wrap|video_thumb)[^>]*background-image:url\('([^']+)'\)/)?.[1];
     const video = /tgme_widget_message_video|tgme_widget_message_roundvideo/.test(block);
     const firstLine = text.split('\n').find((l) => l.trim()) ?? '';
     posts.push({
@@ -39,6 +41,8 @@ async function readChannel(before) {
       title: firstLine.length > 120 ? `${firstLine.slice(0, 117)}…` : firstLine || (video ? '🎬 סרטון' : photo ? '📷 תמונה' : 'הודעה'),
       text: text.slice(0, 600), // preview only; the full post is shown by the widget
       media: video ? 'video' : photo ? 'photo' : undefined,
+      image,
+      hasText: Boolean(text),
       source: channel,
       publishedAt: new Date(time).toISOString(),
       url: `https://t.me/${post}`,
@@ -68,7 +72,9 @@ export async function collectTelegram() {
     await new Promise((ok) => setTimeout(ok, 1000)); // be gentle with Telegram
   }
   const byId = new Map([...previous, ...latest].map((p) => [p.id, p]));
+  // Fresh copies replace older ones (image links can change).
+  for (const p of latest) byId.set(p.id, p);
   const all = [...byId.values()].sort((a, b) => Number(b.id) - Number(a.id)).slice(0, KEEP);
-  console.log(`telegram ${CHANNEL}: ${latest.length} latest posts (${latest.filter((p) => p.media).length} with photo/video), ${all.length} kept`);
+  console.log(`telegram ${CHANNEL}: ${latest.length} latest posts (${latest.filter((p) => p.media).length} with photo/video, ${latest.filter((p) => p.image).length} with a thumbnail), ${all.length} kept`);
   return all;
 }

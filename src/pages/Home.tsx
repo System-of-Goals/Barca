@@ -187,10 +187,10 @@ export function Home({ data }: { data: SiteData }) {
           <h2 className="card-title"><Newspaper size={18} /> חדשות אחרונות</h2>
           {data.news.slice(0, 3).map((n) => (
             <Link key={n.id} to={`/news/${n.id}`} className="news-item">
-              <div className="news-thumb" />
+              <div className="news-thumb">{n.image && <img src={n.image} alt="" loading="lazy" referrerPolicy="no-referrer" />}</div>
               <div>
                 <div className="news-title">{n.title}</div>
-                <div className="small">{n.media === 'photo' ? '📷 ' : n.media === 'video' ? '🎬 ' : ''}טלגרם · {n.source} · {timeAgo(n.publishedAt)}</div>
+                <div className="small">{n.media === 'video' ? '🎬 ' : ''}טלגרם · {timeAgo(n.publishedAt)}</div>
               </div>
             </Link>
           ))}
