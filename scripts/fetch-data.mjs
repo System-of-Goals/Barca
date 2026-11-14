@@ -277,64 +277,32 @@ async function competitionTables(id, name) {
 }
 
 // ---------- Career and awards from Wikidata (refreshed once a day) ----------
-const WD = 'https://www.wikidata.org/w/api.php';
-const WD_HEADERS = { 'user-agent': 'personal-fan-site-bot/1.0 (non-commercial)' };
+// Two SPARQL queries cover the whole squad, so Wikidata isn't asked once per player.
+const SPARQL = 'https://query.wikidata.org/sparql';
+const WD_HEADERS = { 'user-agent': 'personal-fan-site-bot/1.0 (non-commercial; one query a day)', accept: 'application/sparql-results+json' };
 const CAREER_URL = 'https://system-of-goals.github.io/Barca/data/careers.json';
 
-async function wd(params) {
-  const r = await fetch(`${WD}?${new URLSearchParams({ format: 'json', ...params })}`, { headers: WD_HEADERS });
-  if (!r.ok) throw new Error(`wikidata HTTP ${r.status}`);
-  return r.json();
-}
-const year = (snak) => {
-  const t = snak?.[0]?.datavalue?.value?.time;
-  return t ? Number(t.slice(1, 5)) : undefined;
-};
-const amount = (snak) => {
-  const a = snak?.[0]?.datavalue?.value?.amount;
-  return a ? Number(a) : undefined;
-};
-
-// Finds the footballer's Wikidata entry by English name and birth year.
-async function findPlayer(name, birthYear) {
-  const res = await wd({ action: 'wbsearchentities', search: name, language: 'en', type: 'item', limit: '7' });
-  const candidates = (res.search ?? []).filter((x) => /football/i.test(x.description ?? ''));
-  for (const c of candidates) {
-    if (!birthYear) return c.id;
-    const e = await wd({ action: 'wbgetentities', ids: c.id, props: 'claims' });
-    const born = year(e.entities?.[c.id]?.claims?.P569?.map((x) => x.mainsnak));
-    if (!born || Math.abs(born - birthYear) <= 1) return c.id;
+async function sparql(query) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const r = await fetch(`${SPARQL}?query=${encodeURIComponent(query)}`, { headers: WD_HEADERS });
+    if (r.status === 429 || r.status >= 500) {
+      const wait = Number(r.headers.get('retry-after')) || 10;
+      await new Promise((ok) => setTimeout(ok, Math.min(wait, 30) * 1000));
+      continue;
+    }
+    if (!r.ok) throw new Error(`wikidata HTTP ${r.status}`);
+    return (await r.json()).results.bindings;
   }
-  return undefined;
+  throw new Error('wikidata busy');
 }
 
-async function labels(ids) {
-  const out = new Map();
-  for (let i = 0; i < ids.length; i += 50) {
-    const e = await wd({ action: 'wbgetentities', ids: ids.slice(i, i + 50).join('|'), props: 'labels', languages: 'he|en' });
-    for (const [id, v] of Object.entries(e.entities ?? {})) out.set(id, v.labels?.he?.value ?? v.labels?.en?.value ?? id);
-  }
-  return out;
-}
+// Everyone who joined Barcelona's first team since 2015 and hasn't left.
+const CURRENT = `?player p:P54 ?now. ?now ps:P54 wd:Q7156; pq:P580 ?since. FILTER NOT EXISTS { ?now pq:P582 ?left } FILTER(YEAR(?since) >= 2015)
+  ?player wdt:P569 ?birth.`;
 
-async function careerOf(qid) {
-  const e = await wd({ action: 'wbgetentities', ids: qid, props: 'claims|sitelinks' });
-  const ent = e.entities?.[qid] ?? {};
-  const teams = (ent.claims?.P54 ?? []).map((c) => ({
-    teamId: c.mainsnak?.datavalue?.value?.id,
-    from: year(c.qualifiers?.P580),
-    to: year(c.qualifiers?.P582),
-    apps: amount(c.qualifiers?.P1350),
-    goals: amount(c.qualifiers?.P1351),
-    loan: Boolean(c.qualifiers?.P1642),
-  })).filter((t) => t.teamId);
-  const awards = (ent.claims?.P166 ?? []).map((c) => ({
-    awardId: c.mainsnak?.datavalue?.value?.id,
-    year: year(c.qualifiers?.P585),
-  })).filter((a) => a.awardId);
-  const site = ent.sitelinks?.hewiki?.title;
-  return { teams, awards, wikipedia: site ? `https://he.wikipedia.org/wiki/${encodeURIComponent(site.replace(/ /g, '_'))}` : undefined };
-}
+const v = (b, k) => b[k]?.value;
+const yearOf = (t) => (t ? Number(t.slice(0, 4)) : undefined);
+const numOf = (t) => (t !== undefined ? Number(t) : undefined);
 
 // Returns { updatedAt, players: { [365 athlete id]: { career, awards, wikipedia } } }.
 async function careers(squad) {
@@ -342,44 +310,76 @@ async function careers(squad) {
     const r = await fetch(CAREER_URL);
     if (r.ok) {
       const old = await r.json();
-      const fresh = Date.now() - new Date(old.updatedAt).getTime() < 24 * 60 * 60 * 1000;
-      const complete = squad.every((p) => old.players?.[p.id] !== undefined);
-      if (fresh && complete) return old;
+      if (Date.now() - new Date(old.updatedAt).getTime() < 24 * 60 * 60 * 1000) return old;
     }
   } catch {
     // no published copy yet
   }
 
-  const english = await fetch(`${API}/squads/?appTypeId=5&langId=1&competitors=${BARCA}`, { headers: HEADERS }).then((r) => r.json());
-  const enName = new Map((english.squads?.[0]?.athletes ?? []).map((a) => [String(a.id), a.name]));
-  const raw = {};
-  for (const p of squad) {
-    try {
-      const name = enName.get(p.id);
-      const qid = name && (await findPlayer(name, p.birthdate ? new Date(p.birthdate).getFullYear() : undefined));
-      raw[p.id] = qid ? await careerOf(qid) : null;
-    } catch (e) {
-      console.warn(`career ${p.id}: ${e.message}`);
-      raw[p.id] = null;
-    }
-  }
-  const ids = [...new Set(Object.values(raw).flatMap((c) => (c ? [...c.teams.map((t) => t.teamId), ...c.awards.map((a) => a.awardId)] : [])))];
-  const names = await labels(ids);
-  const isNational = (n) => /נבחרת|national/i.test(n);
-  const players = {};
-  for (const [id, c] of Object.entries(raw)) {
-    players[id] = c && {
-      wikipedia: c.wikipedia,
-      career: c.teams
-        .map(({ teamId, ...t }) => ({ ...t, team: names.get(teamId), national: isNational(names.get(teamId) ?? '') }))
-        .sort((a, b) => (a.from ?? 0) - (b.from ?? 0)),
-      awards: c.awards
-        .map(({ awardId, year }) => ({ name: names.get(awardId), year }))
-        .sort((a, b) => (b.year ?? 0) - (a.year ?? 0)),
+  const spells = await sparql(`SELECT ?player ?birth ?teamLabel ?start ?end ?apps ?goals ?loan ?article WHERE {
+  ${CURRENT}
+  ?player p:P54 ?s. ?s ps:P54 ?team.
+  OPTIONAL { ?s pq:P580 ?start } OPTIONAL { ?s pq:P582 ?end }
+  OPTIONAL { ?s pq:P1350 ?apps } OPTIONAL { ?s pq:P1351 ?goals } OPTIONAL { ?s pq:P1642 ?loan }
+  OPTIONAL { ?article schema:about ?player; schema:isPartOf <https://he.wikipedia.org/> }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "he,en". }
+}`);
+  const awards = await sparql(`SELECT ?player ?awardLabel ?when WHERE {
+  ${CURRENT}
+  ?player p:P166 ?a. ?a ps:P166 ?award. OPTIONAL { ?a pq:P585 ?when }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "he,en". }
+}`);
+
+  // Group by player; key = birth date, which is how we match 365Scores' squad.
+  const byBirth = new Map();
+  const entry = (b) => {
+    const key = v(b, 'birth')?.slice(0, 10);
+    if (!byBirth.has(key)) byBirth.set(key, new Map());
+    const m = byBirth.get(key);
+    const id = v(b, 'player');
+    if (!m.has(id)) m.set(id, { career: [], awards: [], seen: new Set() });
+    return m.get(id);
+  };
+  for (const b of spells) {
+    const e = entry(b);
+    if (v(b, 'article')) e.wikipedia = v(b, 'article');
+    const spell = {
+      team: v(b, 'teamLabel'),
+      from: yearOf(v(b, 'start')),
+      to: yearOf(v(b, 'end')),
+      apps: numOf(v(b, 'apps')),
+      goals: numOf(v(b, 'goals')),
+      loan: Boolean(v(b, 'loan')),
     };
+    const key = `${spell.team}|${spell.from}`;
+    if (e.seen.has(key)) continue;
+    e.seen.add(key);
+    e.career.push({ ...spell, national: /נבחרת|national/i.test(spell.team ?? '') });
+  }
+  const awardKeys = new Set();
+  for (const b of awards) {
+    const e = entry(b);
+    const award = { name: v(b, 'awardLabel'), year: yearOf(v(b, 'when')) };
+    const key = `${v(b, 'player')}|${award.name}|${award.year}`;
+    if (awardKeys.has(key)) continue;
+    awardKeys.add(key);
+    e.awards.push(award);
+  }
+
+  const players = {};
+  for (const p of squad) {
+    const candidates = byBirth.get(p.birthdate?.slice(0, 10));
+    const e = candidates && candidates.size === 1 ? [...candidates.values()][0] : undefined;
+    players[p.id] = e
+      ? {
+          wikipedia: e.wikipedia,
+          career: e.career.sort((a, b) => (a.from ?? 0) - (b.from ?? 0)),
+          awards: e.awards.sort((a, b) => (b.year ?? 0) - (a.year ?? 0)),
+        }
+      : null;
   }
   const found = Object.values(players).filter(Boolean).length;
-  console.log(`careers: found ${found}/${squad.length} on Wikidata`);
+  console.log(`careers: found ${found}/${squad.length} players on Wikidata`);
   return { updatedAt: new Date().toISOString(), players };
 }
 
