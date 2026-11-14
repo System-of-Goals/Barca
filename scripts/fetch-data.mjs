@@ -696,7 +696,7 @@ async function build() {
         const n = await collectTelegram();
         await writeFile(`${OUT_DIR}/news.json`, JSON.stringify(n));
         // Home page: the latest posts that have text (photo-only posts are on the news page).
-        return n.filter((p) => p.hasText).slice(0, 3);
+        return n.filter((p) => p.hasText ?? Boolean(p.text)).slice(0, 3);
       } catch (e) {
         console.warn(`news: ${e.message}`);
         return [];
