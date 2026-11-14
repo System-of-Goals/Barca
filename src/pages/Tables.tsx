@@ -18,9 +18,29 @@ function useTables() {
 
 const ringLetter = { win: 'נ', draw: 'ת', loss: 'ה' } as const;
 
+type Zone = { from: number; to: number; cls: string; label: string };
+// What each place is worth. Spanish rules: 4 to the Champions League, 5-6 Europa League, 7 Conference League, last 3 go down.
+function zonesFor(competition: string, size: number): Zone[] {
+  if (competition.includes('לה ליגה')) return [
+    { from: 1, to: 4, cls: 'z-ucl', label: 'ליגת האלופות' },
+    { from: 5, to: 6, cls: 'z-uel', label: 'הליגה האירופית' },
+    { from: 7, to: 7, cls: 'z-uecl', label: 'הקונפרנס ליג' },
+    { from: size - 2, to: size, cls: 'z-down', label: 'ירידה' },
+  ];
+  if (competition.includes('האלופות')) return [
+    { from: 1, to: 8, cls: 'z-ucl', label: 'שמינית הגמר' },
+    { from: 9, to: 24, cls: 'z-uel', label: 'פלייאוף' },
+    { from: 25, to: size, cls: 'z-down', label: 'הדחה' },
+  ];
+  return [];
+}
+
 function Standings({ t }: { t: CompetitionTables }) {
   const [open, setOpen] = useState<number>();
+  const zones = zonesFor(t.competition, t.rows.length);
+  const zoneOf = (pos: number) => zones.find((z) => pos >= z.from && pos <= z.to)?.cls ?? '';
   return (
+    <>
     <div className="card table-card">
       <div className="t-row t-head">
         <span className="t-pos">#</span>
@@ -31,7 +51,7 @@ function Standings({ t }: { t: CompetitionTables }) {
       </div>
       {t.rows.map((r) => (
         <Fragment key={r.position}>
-          <button className={`t-row ${r.barca ? 'barca' : ''}`} onClick={() => setOpen(open === r.position ? undefined : r.position)}>
+          <button className={`t-row ${zoneOf(r.position)} ${r.barca ? 'barca' : ''}`} onClick={() => setOpen(open === r.position ? undefined : r.position)}>
             <span className="t-pos">{r.position}</span>
             <span className="t-team">
               {r.crest && <img className="mini-crest" src={asset(r.crest)} alt="" />}
@@ -53,6 +73,12 @@ function Standings({ t }: { t: CompetitionTables }) {
         </Fragment>
       ))}
     </div>
+    {zones.length > 0 && (
+      <div className="zone-legend">
+        {zones.map((z) => <span key={z.cls}><i className={z.cls} />{z.label}</span>)}
+      </div>
+    )}
+    </>
   );
 }
 

@@ -446,3 +446,16 @@ button { font: inherit; color: inherit; }
 .form-line { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
 .form-line .form-score { font-weight: 800; min-width: 34px; font-variant-numeric: tabular-nums; }
 .form-line .form-opp { flex: 1; }
+
+/* Table zones: a colored strip at the start (right) of the row */
+.t-row.z-ucl { box-shadow: inset -3px 0 0 #3b82f6; }
+.t-row.z-uel { box-shadow: inset -3px 0 0 #f59e0b; }
+.t-row.z-uecl { box-shadow: inset -3px 0 0 #22c55e; }
+.t-row.z-down { box-shadow: inset -3px 0 0 #ef4444; }
+.zone-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: center; font-size: 12px; color: var(--muted); margin: -4px 0 10px; }
+.zone-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.zone-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.zone-legend i.z-ucl { background: #3b82f6; }
+.zone-legend i.z-uel { background: #f59e0b; }
+.zone-legend i.z-uecl { background: #22c55e; }
+.zone-legend i.z-down { background: #ef4444; }
