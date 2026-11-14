@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # Refresh the data every 15 minutes (GitHub may run it a few minutes late).
+  schedule:
+    - cron: '*/15 * * * *'
 
 permissions:
   contents: read
@@ -24,6 +27,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Fetch data from 365Scores
+        run: node scripts/fetch-data.mjs
       - run: npm run build
       # SPA fallback so deep links (e.g. /Barca/matches) load the app
       - run: cp dist/index.html dist/404.html

@@ -3,3 +3,5 @@ dist
 dev-dist
 *.local
 *.tsbuildinfo
+public/data/
+public/img/

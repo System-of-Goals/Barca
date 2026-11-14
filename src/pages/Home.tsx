@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CalendarDays, Crown, Target, Newspaper, Trophy, User } from 'lucide-react';
-import type { Match, SiteData } from '../data/types';
+import type { Leader, Match, SiteData } from '../data/types';
+import { asset } from '../data/useSiteData';
 import { Header } from '../components/Header';
 import {
-  competitionName,
   formatDate,
   formatTime,
   formatWeekday,
@@ -36,10 +36,13 @@ function NextMatch({ match }: { match: Match }) {
         {live ? (
           <span className="live-badge"><span className="live-dot" /> עכשיו {match.minute ? `${match.minute}׳` : ''}</span>
         ) : (
-          <>המשחק הקרוב · {competitionName[match.competition]} · {match.round}</>
+          <>המשחק הקרוב · {match.competition} · {match.round}</>
         )}
       </div>
-      <div className="hero-teams">ברצלונה נגד {match.opponent.name}</div>
+      <div className="hero-teams">
+        ברצלונה נגד {match.opponent.name}
+        {match.opponent.crest && <img className="hero-crest" src={asset(match.opponent.crest)} alt="" />}
+      </div>
       <div className="hero-meta">
         {formatWeekday(match.kickoff)} {formatDate(match.kickoff)} · {formatTime(match.kickoff)} · {match.venue}
       </div>
@@ -76,11 +79,13 @@ function LastMatch({ match }: { match: Match }) {
           <span className="score-dash">–</span>
           <span>{match.opponentGoals}</span>
         </span>
-        <span className="score-team opp">{match.opponent.name}</span>
+        <span className="score-team opp">
+          {match.opponent.crest && <img className="mini-crest" src={asset(match.opponent.crest)} alt="" />} {match.opponent.name}
+        </span>
       </div>
       <div className="small" style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
         {o && <span className={`badge ${o}`}>{outcomeLabel[o]}</span>}
-        {competitionName[match.competition]} · {formatDate(match.kickoff)}
+        {match.competition} · {formatDate(match.kickoff)}
       </div>
     </Link>
   );
@@ -109,6 +114,21 @@ function LastFive({ matches }: { matches: Match[] }) {
   );
 }
 
+function LeaderCard({ leader, title, unit, icon }: { leader: Leader; title: string; unit: string; icon: React.ReactNode }) {
+  const photo = asset(leader.photo);
+  return (
+    <Link to={`/players/${leader.playerId}`} className="leader card-link">
+      <div className="leader-photo">{photo ? <img src={photo} alt={leader.name} /> : <User size={40} />}</div>
+      <div style={{ position: 'relative' }}>
+        <div className="leader-title">{icon} {title}</div>
+        <div className="leader-name">{leader.name}</div>
+        <div className="leader-value"><b>{leader.value}</b> {unit}</div>
+        {leader.competition && <div className="small" style={{ color: '#fff', opacity: 0.8 }}>{leader.competition}</div>}
+      </div>
+    </Link>
+  );
+}
+
 export function Home({ data }: { data: SiteData }) {
   const sorted = [...data.matches].sort(byKickoff);
   const next = sorted.find((m) => m.status !== 'finished');
@@ -117,18 +137,19 @@ export function Home({ data }: { data: SiteData }) {
 
   return (
     <>
-      <Header updatedAt={data.updatedAt} />
+      <Header updatedAt={data.updatedAt} crest={data.crest} />
       {data.isSample && <div className="sample-banner">⚠️ נתוני דוגמה – הנתונים האמיתיים יחוברו בהמשך</div>}
       <main className="page" style={{ marginTop: 12 }}>
         {next && <NextMatch match={next} />}
         {last && <LastMatch match={last} />}
         {played.length > 0 && <LastFive matches={played.slice(0, 5)} />}
 
+        {data.standings.length > 0 && (
         <section className="card">
           <h2 className="card-title"><Trophy size={18} /> המקום שלנו</h2>
           {data.standings.map((s) => (
             <div key={s.competition} className="stand-row">
-              <span className="stand-comp">{competitionName[s.competition]}</span>
+              <span className="stand-comp">{s.competition}</span>
               <span>מקום <span className="gold">{s.position}</span></span>
               <span>· <span className="gold">{s.points}</span> נק׳</span>
             </div>
@@ -136,25 +157,14 @@ export function Home({ data }: { data: SiteData }) {
           {data.standings[0]?.note && <div className="small">{data.standings[0].note}</div>}
           <Link to="/tables" className="more">לטבלאות ›</Link>
         </section>
+        )}
 
-        <div className="leaders">
-          <Link to={`/players/${data.topScorer.playerId}`} className="leader card-link">
-            <div className="leader-photo"><User size={40} /></div>
-            <div style={{ marginRight: 4, position: 'relative' }}>
-              <div className="leader-title"><Crown size={14} /> מלך השערים</div>
-              <div className="leader-name">{data.topScorer.name}</div>
-              <div className="leader-value"><b>{data.topScorer.value}</b> שערים</div>
-            </div>
-          </Link>
-          <Link to={`/players/${data.topAssister.playerId}`} className="leader card-link">
-            <div className="leader-photo"><User size={40} /></div>
-            <div style={{ position: 'relative' }}>
-              <div className="leader-title"><Target size={14} /> מלך הבישולים</div>
-              <div className="leader-name">{data.topAssister.name}</div>
-              <div className="leader-value"><b>{data.topAssister.value}</b> בישולים</div>
-            </div>
-          </Link>
-        </div>
+        {(data.topScorer || data.topAssister) && (
+          <div className="leaders">
+            {data.topScorer && <LeaderCard leader={data.topScorer} title="מלך השערים" unit="שערים" icon={<Crown size={14} />} />}
+            {data.topAssister && <LeaderCard leader={data.topAssister} title="מלך הבישולים" unit="בישולים" icon={<Target size={14} />} />}
+          </div>
+        )}
 
         {data.todayInHistory && (
           <Link to="/history" className="card card-link">
@@ -163,6 +173,7 @@ export function Home({ data }: { data: SiteData }) {
           </Link>
         )}
 
+        {data.news.length > 0 && (
         <section className="card">
           <h2 className="card-title"><Newspaper size={18} /> חדשות אחרונות</h2>
           {data.news.slice(0, 3).map((n) => (
@@ -176,6 +187,7 @@ export function Home({ data }: { data: SiteData }) {
           ))}
           <Link to="/news" className="more">לכל החדשות ›</Link>
         </section>
+        )}
 
         <div className="footer-note">אתר מעריצים אישי ולא רשמי · אין קשר ל-FC Barcelona</div>
       </main>

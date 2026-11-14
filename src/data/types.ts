@@ -1,7 +1,5 @@
-// Shape of the data the site reads. Today it is filled with sample data;
-// later a scheduled job writes the same shape from the real data sources.
-
-export type Competition = 'laliga' | 'ucl' | 'copa' | 'supercopa';
+// Shape of the data the site reads. scripts/fetch-data.mjs writes it to
+// public/data/site.json; the sample data is used when that file is missing.
 
 export interface Team {
   name: string; // Hebrew display name
@@ -10,7 +8,7 @@ export interface Team {
 
 export interface Match {
   id: string;
-  competition: Competition;
+  competition: string; // Hebrew name, e.g. "לה ליגה"
   round: string; // e.g. "מחזור 14"
   kickoff: string; // ISO time (UTC); shown in Israel time
   venue: string;
@@ -23,7 +21,7 @@ export interface Match {
 }
 
 export interface StandingSummary {
-  competition: Competition;
+  competition: string;
   position: number;
   points: number;
   played: number;
@@ -35,6 +33,7 @@ export interface Leader {
   name: string;
   photo?: string;
   value: number;
+  competition?: string; // which competition the count is for
 }
 
 export interface NewsItem {
@@ -54,10 +53,11 @@ export interface HistoryEvent {
 export interface SiteData {
   isSample: boolean;
   updatedAt: string; // ISO
+  crest?: string; // club crest, relative to the site root
   matches: Match[]; // the whole season, any order
   standings: StandingSummary[];
-  topScorer: Leader;
-  topAssister: Leader;
+  topScorer?: Leader;
+  topAssister?: Leader;
   todayInHistory?: HistoryEvent;
   news: NewsItem[];
 }

@@ -2,14 +2,14 @@ import { Route, Routes } from 'react-router-dom';
 import { BottomNav } from './components/BottomNav';
 import { Home } from './pages/Home';
 import { More, Placeholder } from './pages/Placeholder';
-import { sampleData } from './data/sample';
+import { useSiteData } from './data/useSiteData';
 
 export function App() {
-  const data = sampleData;
+  const data = useSiteData();
   return (
     <div className="app">
       <Routes>
-        <Route path="/" element={<Home data={data} />} />
+        <Route path="/" element={data ? <Home data={data} /> : <div className="soon">טוען…</div>} />
         <Route path="/matches" element={<Placeholder title="משחקים" />} />
         <Route path="/matches/:id" element={<Placeholder title="משחק" />} />
         <Route path="/tables" element={<Placeholder title="טבלאות" />} />

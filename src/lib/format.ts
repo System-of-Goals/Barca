@@ -1,14 +1,7 @@
-import type { Competition, Match } from '../data/types';
+import type { Match } from '../data/types';
 
 // All times on the site are shown in Israel time.
 const TZ = 'Asia/Jerusalem';
-
-export const competitionName: Record<Competition, string> = {
-  laliga: 'לה ליגה',
-  ucl: 'ליגת האלופות',
-  copa: 'גביע המלך',
-  supercopa: 'סופר-קאפ',
-};
 
 export function formatTime(iso: string): string {
   return new Intl.DateTimeFormat('he-IL', { timeZone: TZ, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
