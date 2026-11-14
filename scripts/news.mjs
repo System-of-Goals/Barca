@@ -132,6 +132,111 @@ async function machineHebrew(item) {
   return { title: await myMemory(item.title, item.lang), summary: await myMemory(item.summary, item.lang), by: 'machine' };
 }
 
+// ---------- extended summaries (250–350 words) from the full article ----------
+const BROWSER = { 'user-agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Mobile Safari/537.36', 'accept-language': 'es,en;q=0.8' };
+
+// Downloads an article and keeps only its paragraphs. Returns '' when the site blocks us,
+// the article is behind a paywall, or the link stays on Google News.
+async function articleText(url) {
+  const r = await fetch(url, { headers: BROWSER, redirect: 'follow', signal: AbortSignal.timeout(15_000) });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  if (/news\.google\.com/.test(r.url)) throw new Error('Google News link (not opened)');
+  const html = (await r.text()).replace(/<(script|style|noscript|svg|figure|aside|nav|footer|header)[\s\S]*?<\/\1>/gi, ' ');
+  const body = html.match(/<article[\s\S]*?<\/article>/i)?.[0] ?? html;
+  const paras = [...body.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)]
+    .map((m) => decode(m[1]))
+    .filter((t) => t.length > 60 && !/cookies|suscr[ií]bete|newsletter|todos los derechos|all rights reserved/i.test(t));
+  return paras.join('\n').slice(0, 7000);
+}
+
+async function geminiDetailed(items) {
+  const key = process.env.GEMINI_API_KEY;
+  const list = items.map((it, i) => `#${i}\nכותרת: ${it.original}\nטקסט הכתבה:\n${it.text}`).join('\n\n=====\n\n');
+  const prompt = `לפניך ${items.length} כתבות על ברצלונה. לכל כתבה כתוב בעברית טבעית, במילים שלך (לא תרגום מילולי של הכתבה), סיכום מורחב של 250–350 מילים בסך הכול, לפי המבנה:
+- short: "בקצרה" – 2–3 משפטים: מה קרה.
+- points: "הנקודות העיקריות" – 4–7 נקודות, כל אחת משפט-שניים, עם כל העובדות החשובות מהכתבה (שמות, מספרים, תאריכים, קבוצות).
+- quotes: "מה נאמר" – עד 2 ציטוטים קצרים (עד 25 מילים כל אחד) מתורגמים לעברית, עם מי אמר. אם אין ציטוטים – מערך ריק.
+- meaning: "מה זה אומר לברצלונה" – 1–2 משפטים של הקשר.
+כתוב רק מה שמופיע בכתבה – בלי להמציא עובדות.
+
+${list}`;
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${key}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    signal: AbortSignal.timeout(120_000),
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: 'ARRAY',
+          items: {
+            type: 'OBJECT',
+            properties: {
+              i: { type: 'INTEGER' },
+              short: { type: 'STRING' },
+              points: { type: 'ARRAY', items: { type: 'STRING' } },
+              quotes: { type: 'ARRAY', items: { type: 'OBJECT', properties: { who: { type: 'STRING' }, text: { type: 'STRING' } }, required: ['text'] } },
+              meaning: { type: 'STRING' },
+            },
+            required: ['i', 'short', 'points', 'quotes', 'meaning'],
+          },
+        },
+      },
+    }),
+  });
+  if (!r.ok) throw new Error(`gemini HTTP ${r.status}`);
+  const out = JSON.parse((await r.json()).candidates[0].content.parts[0].text);
+  return new Map(out.map((o) => [Number(o.i), o]));
+}
+
+// Adds an extended summary to up to 8 stories per run (newest first). Each story is tried
+// at most twice; when the article can't be read it keeps its short summary.
+async function deepen(stories) {
+  if (!process.env.GEMINI_API_KEY) return;
+  const todo = stories.filter((s) => !s.detail && (s.detailTries ?? 0) < 2).slice(0, 8);
+  const ready = [];
+  let blocked = 0;
+  for (const st of todo) {
+    st.detailTries = (st.detailTries ?? 0) + 1;
+    // Prefer a direct link to the site over a Google News link.
+    const links = [...(st.sources ?? []), { url: st.url }].map((x) => x.url).sort((a, b) => /news\.google/.test(a) - /news\.google/.test(b));
+    let text = '';
+    for (const url of [...new Set(links)]) {
+      try {
+        text = await articleText(url);
+        if (text.length > 400) break;
+      } catch (e) {
+        text = '';
+      }
+    }
+    if (text.length > 400) ready.push({ st, original: st.original ?? st.title, text });
+    else blocked++;
+  }
+  let done = 0;
+  for (let i = 0; i < ready.length; i += 4) {
+    const chunk = ready.slice(i, i + 4);
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const res = await geminiDetailed(chunk);
+        chunk.forEach((c, j) => {
+          const o = res.get(j);
+          if (o?.short && o.points?.length) {
+            c.st.detail = { short: o.short, points: o.points, quotes: (o.quotes ?? []).filter((q) => q.text), meaning: o.meaning };
+            done++;
+          }
+        });
+        break;
+      } catch (e) {
+        console.warn(`news detail: ${e.message} (attempt ${attempt}/3)`);
+        if (attempt < 3 && /HTTP (503|429|500)/.test(e.message)) await new Promise((ok) => setTimeout(ok, 15_000));
+        else break;
+      }
+    }
+  }
+  console.log(`news detail: ${done} extended summaries written, ${blocked} articles could not be read`);
+}
+
 // ---------- main ----------
 export async function collectNews() {
   // Items already translated last time are reused, so each story is translated once.
@@ -228,6 +333,11 @@ export async function collectNews() {
   const translated = picked.length;
   for (const st of stories) if (st.topicBy !== 'gemini') st.topic = topicOf(st.original ?? '');
   stories.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+  try {
+    await deepen(stories);
+  } catch (e) {
+    console.warn(`news detail: ${e.message}`);
+  }
   console.log(`news: ${stories.length} stories (${translated} new: ${byGemini} by Gemini, ${translated - byGemini - skipped} by machine, ${skipped} not about the men's first team)`);
   return stories.slice(0, KEEP);
 }

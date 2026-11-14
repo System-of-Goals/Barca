@@ -43,6 +43,8 @@ export interface NewsItem {
   original?: string; // the source's headline
   topic?: 'העברות' | 'פציעות' | 'משחקים' | 'מועדון';
   translatedBy?: 'gemini' | 'machine';
+  // Extended summary (250–350 words) written from the full article.
+  detail?: { short: string; points: string[]; quotes: { who?: string; text: string }[]; meaning: string };
   source: string;
   sources?: { name: string; url: string }[];
   publishedAt: string; // ISO

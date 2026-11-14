@@ -181,7 +181,7 @@ export function Home({ data }: { data: SiteData }) {
         <section className="card">
           <h2 className="card-title"><Newspaper size={18} /> חדשות אחרונות</h2>
           {data.news.slice(0, 3).map((n) => (
-            <Link key={n.id} to="/news" className="news-item">
+            <Link key={n.id} to={`/news/${n.id}`} className="news-item">
               <div className="news-thumb" />
               <div>
                 <div className="news-title">{n.title}</div>
