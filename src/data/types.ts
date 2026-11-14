@@ -79,7 +79,7 @@ export interface LineupPlayer {
   starting: boolean;
   position?: string;
   line?: number; // 0 = own goal line … 100 = opponent's
-  side?: number; // 0 … 100 across the pitch
+  side?: number; // 0 = right touchline … 100 = left (facing the attack)
   rating?: number;
   photo?: string;
 }

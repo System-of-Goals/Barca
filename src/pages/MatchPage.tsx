@@ -48,7 +48,7 @@ function Pitch({ lineup }: { lineup: Lineup }) {
           <div
             key={p.id}
             className="pitch-player"
-            style={{ bottom: `${7 + (p.line! / 100) * 80}%`, left: `${10 + (p.side! / 100) * 80}%` }}
+            style={{ bottom: `${7 + (p.line! / 100) * 80}%`, left: `${90 - (p.side! / 100) * 80}%` }}
           >
             <span className="pitch-num">{p.number ?? ''}</span>
             <span className="pitch-name">{p.name}</span>
