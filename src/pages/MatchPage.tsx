@@ -39,7 +39,7 @@ function EventRow({ e }: { e: MatchEvent }) {
 // Vertical pitch (fits a phone): own goal at the bottom, attack upwards.
 function Pitch({ lineup }: { lineup: Lineup }) {
   const starters = lineup.players.filter((p) => p.starting && p.line !== undefined && p.side !== undefined);
-  const bench = lineup.players.filter((p) => !p.starting);
+  const bench = lineup.players.filter((p) => !p.starting && (p.number ?? 0) >= 0);
   return (
     <>
       <div className="pitch">
@@ -48,11 +48,11 @@ function Pitch({ lineup }: { lineup: Lineup }) {
           <div
             key={p.id}
             className="pitch-player"
-            style={{ bottom: `${7 + (p.line! / 100) * 80}%`, left: `${90 - (p.side! / 100) * 80}%` }}
+            style={{ bottom: `${7 + (p.line! / 100) * 80}%`, left: `${10 + (p.side! / 100) * 80}%` }}
           >
             <span className="pitch-num">{p.number ?? ''}</span>
             <span className="pitch-name">{p.name}</span>
-            {p.rating !== undefined && <span className={`rating ${p.rating >= 7 ? 'hi' : p.rating < 6 ? 'lo' : ''}`}>{p.rating.toFixed(1)}</span>}
+            {p.rating !== undefined && p.rating > 0 && <span className={`rating ${p.rating >= 7 ? 'hi' : p.rating < 6 ? 'lo' : ''}`}>{p.rating.toFixed(1)}</span>}
           </div>
         ))}
       </div>
@@ -62,7 +62,7 @@ function Pitch({ lineup }: { lineup: Lineup }) {
           {bench.map((p) => (
             <span key={p.id} className="bench-player">
               {p.number ?? ''} {p.name}
-              {p.rating !== undefined && <span className="rating">{p.rating.toFixed(1)}</span>}
+              {p.rating !== undefined && p.rating > 0 && <span className="rating">{p.rating.toFixed(1)}</span>}
             </span>
           ))}
         </div>
@@ -131,6 +131,7 @@ export function MatchPage({ data }: { data: SiteData }) {
   const detail = useDetail(match && match.status !== 'scheduled' ? id : undefined);
   const [tab, setTab] = useState<'lineups' | 'stats' | 'events'>('lineups');
   const [team, setTeam] = useState<'barca' | 'opp'>('barca');
+  const [allStats, setAllStats] = useState(false);
 
   if (!match) {
     return (
@@ -182,7 +183,7 @@ export function MatchPage({ data }: { data: SiteData }) {
             <section className="card">
               <div className="stat-head"><span>ברצלונה</span><span>{match.opponent.name}</span></div>
               {detail.stats.length === 0 && <div className="soon">אין סטטיסטיקה למשחק הזה</div>}
-              {detail.stats.map((s) => (
+              {(allStats ? detail.stats : detail.stats.slice(0, 8)).map((s) => (
                 <div key={s.name} className="stat-row">
                   <div className="stat-values">
                     <b>{s.barca}</b>
@@ -194,6 +195,9 @@ export function MatchPage({ data }: { data: SiteData }) {
                   </div>
                 </div>
               ))}
+              {!allStats && detail.stats.length > 8 && (
+                <button className="more show-all" onClick={() => setAllStats(true)}>הצג את כל {detail.stats.length} הנתונים ›</button>
+              )}
             </section>
           )}
 

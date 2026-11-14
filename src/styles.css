@@ -292,3 +292,4 @@ button { font: inherit; color: inherit; }
 .stat-values b:last-child { text-align: left; color: var(--text); }
 .stat-bar { height: 6px; border-radius: 3px; background: #4b5563; overflow: hidden; margin-top: 4px; display: flex; }
 .stat-bar span { background: linear-gradient(90deg, var(--garnet), var(--blue)); border-radius: 3px; }
+.show-all { border: 0; background: none; cursor: pointer; width: 100%; }
