@@ -94,7 +94,10 @@ export function Tables({ data }: { data: SiteData }) {
   if (!tables?.length) return <main className="page"><h1 className="page-title">טבלאות</h1><div className="card soon">הטבלאות יופיעו בעדכון הבא</div></main>;
 
   const t = tables[Math.min(comp, tables.length - 1)];
-  const names = [...new Set([...t.barcaRankings, ...t.allRankings].map((r) => r.name))];
+  // Same order as the robot (spec order first), across both lists.
+  const order = ['שערים', 'בישולים', 'כרטיסים צהובים', 'כרטיסים אדומים', 'רשת נקייה', '365 מצטיינים'];
+  const rankOf = (n: string) => (order.includes(n) ? order.indexOf(n) : order.length);
+  const names = [...new Set([...t.barcaRankings, ...t.allRankings].map((r) => r.name))].sort((a, b) => rankOf(a) - rankOf(b));
   const rankName = names[Math.min(rank, names.length - 1)];
   // A cup has no table: show Barcelona's path through it instead.
   const path = data.matches.filter((m) => m.competition === t.competition).sort((a, b) => a.kickoff.localeCompare(b.kickoff));
