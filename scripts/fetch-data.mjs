@@ -3,7 +3,17 @@
 // Runs on GitHub's servers before every build (every 15 minutes).
 // If 365Scores fails, it keeps the last published data so the site never breaks.
 
+import { appendFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
+
+// Everything the robot reports also goes to robot.log, printed at the end of the workflow.
+for (const level of ['log', 'warn', 'error']) {
+  const original = console[level].bind(console);
+  console[level] = (...args) => {
+    original(...args);
+    appendFileSync('robot.log', `${level === 'log' ? '' : level.toUpperCase() + ': '}${args.join(' ')}\n`);
+  };
+}
 
 const OUT_DIR = 'public/data';
 const IMG_DIR = 'public/img';
