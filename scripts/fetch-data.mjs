@@ -552,7 +552,11 @@ async function squadFile() {
       nationality: countries.get(a.nationalityId),
       photo: await saveImage('Athletes', a.id, a.imageVersion),
     };
-    if (/מאמן/.test(a.position?.name ?? '')) {
+    const roleText = `${a.position?.name ?? ''} ${a.formationPosition?.name ?? ''}`;
+    const isPlayerRole = /שוער|מגן|קשר|חלוץ/.test(a.position?.name ?? '');
+    if (!isPlayerRole) console.log(`staff: ${a.name} · position=${a.position?.name}/${a.position?.id} formation=${a.formationPosition?.name}`);
+    // The head coach: by role name, or else the first staff member listed (365 lists the head coach first).
+    if (!coach && !isPlayerRole && (/מאמן|coach|manager/i.test(roleText) || !players.some((x) => !/שוער|מגן|קשר|חלוץ/.test(x.position ?? '')))) {
       coach = base;
       continue;
     }
