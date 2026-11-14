@@ -301,6 +301,17 @@ export function PlayerPage() {
             </section>
             {c && (
               <section className="card">
+                <h2 className="card-title">📝 חוזה</h2>
+                <div className="budget-row"><span>החוזה עד</span><b>{c.until}</b></div>
+                <div className="budget-row"><span>הצטרף לברצלונה</span><b>{c.joined}</b></div>
+                <div className="budget-row"><span>הגיע מ</span><b>{c.from}</b></div>
+                <div className="small">
+                  <a href={contractSources.value.url} target="_blank" rel="noreferrer" style={{ color: 'var(--gold)' }}>{contractSources.value.name} ↗</a> · עודכן {contractSources.updated}
+                </div>
+              </section>
+            )}
+            {c && (
+              <section className="card">
                 <h2 className="card-title">📈 שווי שוק</h2>
                 <div className="budget-row"><span>שווי מוערך</span><Money m={c.value} rate={rate} big /></div>
                 <div className="small">
