@@ -281,6 +281,7 @@ async function competitionTables(id, name) {
 const SPARQL = 'https://query.wikidata.org/sparql';
 const WD_HEADERS = { 'user-agent': 'personal-fan-site-bot/1.0 (non-commercial; one query a day)', accept: 'application/sparql-results+json' };
 const CAREER_URL = 'https://system-of-goals.github.io/Barca/data/careers.json';
+const CAREER_VERSION = 2; // bump to refresh before the daily update
 
 async function sparql(query) {
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -310,7 +311,7 @@ async function careers(squad) {
     const r = await fetch(CAREER_URL);
     if (r.ok) {
       const old = await r.json();
-      if (Date.now() - new Date(old.updatedAt).getTime() < 24 * 60 * 60 * 1000) return old;
+      if (old.version === CAREER_VERSION && Date.now() - new Date(old.updatedAt).getTime() < 24 * 60 * 60 * 1000) return old;
     }
   } catch {
     // no published copy yet
@@ -324,7 +325,7 @@ async function careers(squad) {
   OPTIONAL { ?article schema:about ?player; schema:isPartOf <https://he.wikipedia.org/> }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "he,en". }
 }`);
-  const awards = await sparql(`SELECT ?player ?awardLabel ?when WHERE {
+  const awards = await sparql(`SELECT ?player ?birth ?awardLabel ?when WHERE {
   ${CURRENT}
   ?player p:P166 ?a. ?a ps:P166 ?award. OPTIONAL { ?a pq:P585 ?when }
   SERVICE wikibase:label { bd:serviceParam wikibase:language "he,en". }
@@ -379,8 +380,9 @@ async function careers(squad) {
       : null;
   }
   const found = Object.values(players).filter(Boolean).length;
-  console.log(`careers: found ${found}/${squad.length} players on Wikidata`);
-  return { updatedAt: new Date().toISOString(), players };
+  const withAwards = Object.values(players).filter((x) => x?.awards.length).length;
+  console.log(`careers: found ${found}/${squad.length} players on Wikidata, ${withAwards} with awards`);
+  return { version: CAREER_VERSION, updatedAt: new Date().toISOString(), players };
 }
 
 // The squad, with each player's season (public/data/players.json).
