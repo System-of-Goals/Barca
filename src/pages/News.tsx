@@ -41,7 +41,7 @@ function ChannelHeader({ name }: { name?: string }) {
 
 export function News() {
   const news = useJson<NewsItem[]>('news.json');
-  const [shown, setShown] = useState(10);
+  const [shown, setShown] = useState(15);
   if (news === undefined) return <main className="page"><h1 className="page-title">חדשות</h1><div className="soon">טוען…</div></main>;
   const list = news ?? [];
   return (
@@ -50,7 +50,7 @@ export function News() {
       <ChannelHeader name={list[0]?.source} />
       {list.length === 0 && <div className="card soon">אין הודעות להצגה כרגע</div>}
       {list.slice(0, shown).map((n) => <TelegramPost key={n.id} post={n.post} />)}
-      {list.length > shown && <button className="more show-all" onClick={() => setShown(shown + 10)}>טען עוד הודעות ›</button>}
+      {list.length > shown && <button className="more show-all" onClick={() => setShown(shown + 15)}>טען עוד הודעות ›</button>}
     </main>
   );
 }

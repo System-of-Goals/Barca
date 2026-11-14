@@ -4,7 +4,8 @@
 // so text, photos and videos stay hosted by Telegram and the channel is credited.
 
 const CHANNEL = 'barcamaniail';
-const KEEP = 60; // posts kept on the site
+const KEEP = 100; // posts kept on the site
+const PAGES = 8; // the web preview shows ~10–20 posts per page; older pages via ?before=<id>
 const LIVE_NEWS = 'https://system-of-goals.github.io/Barca/data/news.json';
 const UA = { 'user-agent': 'Mozilla/5.0 (personal non-commercial fan site)' };
 
@@ -18,8 +19,8 @@ const decode = (s = '') =>
     .replace(/[ \t]+/g, ' ')
     .trim();
 
-async function readChannel() {
-  const r = await fetch(`https://t.me/s/${CHANNEL}`, { headers: UA });
+async function readChannel(before) {
+  const r = await fetch(`https://t.me/s/${CHANNEL}${before ? `?before=${before}` : ''}`, { headers: UA });
   if (!r.ok) throw new Error(`t.me/s/${CHANNEL}: HTTP ${r.status}`);
   const html = await r.text();
   const channel = decode(html.match(/<meta property="og:title" content="([^"]*)"/)?.[1] ?? CHANNEL);
@@ -54,7 +55,18 @@ export async function collectTelegram() {
   } catch {
     // first run
   }
-  const latest = await readChannel();
+  // Read page after page back in time, until we have enough posts or reach ones we already have.
+  const latest = [];
+  let before;
+  const known = new Set(previous.map((p) => p.id));
+  for (let page = 0; page < PAGES && latest.length < KEEP; page++) {
+    const posts = await readChannel(before);
+    if (!posts.length) break;
+    latest.push(...posts);
+    before = Math.min(...posts.map((p) => Number(p.id)));
+    if (posts.every((p) => known.has(p.id)) && previous.length >= KEEP) break;
+    await new Promise((ok) => setTimeout(ok, 1000)); // be gentle with Telegram
+  }
   const byId = new Map([...previous, ...latest].map((p) => [p.id, p]));
   const all = [...byId.values()].sort((a, b) => Number(b.id) - Number(a.id)).slice(0, KEEP);
   console.log(`telegram ${CHANNEL}: ${latest.length} latest posts (${latest.filter((p) => p.media).length} with photo/video), ${all.length} kept`);
