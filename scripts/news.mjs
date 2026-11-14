@@ -84,7 +84,26 @@ ${list}`;
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     signal: AbortSignal.timeout(90_000),
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json' } }),
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        // A fixed shape makes Gemini escape quotes inside the Hebrew text correctly.
+        responseSchema: {
+          type: 'ARRAY',
+          items: {
+            type: 'OBJECT',
+            properties: {
+              i: { type: 'INTEGER' },
+              title: { type: 'STRING' },
+              summary: { type: 'STRING' },
+              topic: { type: 'STRING', enum: ['העברות', 'פציעות', 'משחקים', 'מועדון'] },
+            },
+            required: ['i', 'title', 'summary', 'topic'],
+          },
+        },
+      },
+    }),
   });
   if (!r.ok) throw new Error(`gemini HTTP ${r.status}`);
   const out = JSON.parse((await r.json()).candidates[0].content.parts[0].text);
