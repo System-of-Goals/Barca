@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      force_backup:
+        description: 'Test the backup source (pretend 365Scores is down)'
+        type: boolean
+        default: false
   # Refresh the data every 15 minutes (GitHub may run it a few minutes late).
   schedule:
     - cron: '*/15 * * * *'
@@ -33,6 +38,7 @@ jobs:
         env:
           # Optional: better Hebrew news summaries. Add it under Settings → Secrets → Actions.
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          FORCE_BACKUP: ${{ inputs.force_backup && '1' || '' }}
       - run: npm run build
       # SPA fallback so deep links (e.g. /Barca/matches) load the app
       - run: cp dist/index.html dist/404.html

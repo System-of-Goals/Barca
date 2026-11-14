@@ -6,6 +6,7 @@
 import { appendFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { collectTelegram } from './telegram.mjs';
+import { fromEspn } from './espn.mjs';
 
 // No request may hang the robot: every fetch gives up after 25 seconds.
 const plainFetch = globalThis.fetch;
@@ -576,6 +577,7 @@ async function squadFile() {
 }
 
 async function build() {
+  if (process.env.FORCE_BACKUP) throw new Error('backup test (FORCE_BACKUP)');
   await mkdir(IMG_DIR, { recursive: true });
   const crest = await saveImage('Competitors', BARCA, 9);
 
@@ -705,6 +707,21 @@ async function build() {
   };
 }
 
+// Files on the published site that the robot rebuilds each run. When 365Scores fails they
+// are copied from the published site, so no page breaks.
+const LIVE_SITE = 'https://system-of-goals.github.io/Barca/';
+async function keepPublished(path) {
+  try {
+    const r = await fetch(LIVE_SITE + path);
+    if (!r.ok) return false;
+    await mkdir(`public/${path.split('/').slice(0, -1).join('/')}`, { recursive: true });
+    await writeFile(`public/${path}`, Buffer.from(await r.arrayBuffer()));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function main() {
   await mkdir(OUT_DIR, { recursive: true });
   let data;
@@ -712,14 +729,37 @@ async function main() {
     data = await build();
     console.log(`365Scores: ${data.matches.length} matches, ${data.standings.length} standings, ${saved.size} images`);
   } catch (e) {
-    console.error(`365Scores failed: ${e.message}. Keeping the last published data.`);
+    console.error(`365Scores failed: ${e.message}. Using the backup.`);
+    let previous;
     try {
       const r = await fetch(LIVE_URL);
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      data = await r.json();
+      if (r.ok) previous = await r.json();
+    } catch {
+      // nothing published yet
+    }
+    // Keep every other published file, and the images and match pages it uses.
+    for (const f of ['tables.json', 'players.json', 'careers.json', 'legends.json', 'news.json']) await keepPublished(`data/${f}`);
+    for (const m of previous?.matches ?? []) if (m.status !== 'scheduled') await keepPublished(`data/matches/${m.id}.json`);
+    const images = new Set(JSON.stringify(previous ?? {}).match(/img\/[\w.-]+\.(?:png|jpg)/g) ?? []);
+    for (const img of images) await keepPublished(img);
+
+    // Fresh results and fixtures from ESPN; everything else from the last published data.
+    try {
+      const espn = await fromEspn(seasonStart());
+      data = { ...(previous ?? { isSample: false, news: [] }), ...espn, updatedAt: new Date().toISOString(), backup: 'ESPN' };
+      // Matches 365Scores already had keep their Hebrew names and crests.
+      if (previous) {
+        data.matches = espn.matches.map((m) => {
+          const old = previous.matches.find((p) => Math.abs(new Date(p.kickoff) - new Date(m.kickoff)) < 3 * 3600 * 1000);
+          return old ? { ...old, status: m.status, barcaGoals: m.barcaGoals ?? old.barcaGoals, opponentGoals: m.opponentGoals ?? old.opponentGoals } : m;
+        });
+        if (!espn.standings.length) data.standings = previous.standings;
+      }
+      console.log(`ESPN backup: ${data.matches.length} matches, ${espn.standings.length} standings`);
     } catch (e2) {
-      console.error(`No published data to keep (${e2.message}). The site will show sample data.`);
-      return;
+      console.error(`ESPN failed too: ${e2.message}. Keeping the last published data.`);
+      if (!previous) return console.error('No published data to keep. The site will show sample data.');
+      data = previous;
     }
   }
   await writeFile(`${OUT_DIR}/site.json`, JSON.stringify(data));
