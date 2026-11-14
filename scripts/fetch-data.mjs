@@ -131,6 +131,15 @@ async function matchDetail(gameId, competition, finished) {
     api(`game/stats/?games=${gameId}`).catch(() => ({})),
   ]);
   const barcaHome = g.homeCompetitor.id === BARCA;
+  if (gameId === globalThis.DEBUG_GAME) {
+    const c = barcaHome ? g.homeCompetitor : g.awayCompetitor;
+    const statuses = {};
+    for (const m of c.lineups?.members ?? []) statuses[`${m.status}:${m.statusText}`] = (statuses[`${m.status}:${m.statusText}`] ?? 0) + 1;
+    console.log(`DEBUG played game ${gameId} lineup statuses: ${JSON.stringify(statuses)}`);
+    const odd = (c.lineups?.members ?? []).filter((m) => m.status > 2).slice(0, 3);
+    for (const m of odd) console.log(`DEBUG missing member: ${JSON.stringify(m).slice(0, 600)}`);
+    console.log(`DEBUG lineups keys: ${Object.keys(c.lineups ?? {}).join(',')}`);
+  }
   const usC = barcaHome ? g.homeCompetitor : g.awayCompetitor;
   const themC = barcaHome ? g.awayCompetitor : g.homeCompetitor;
   const people = new Map((g.members ?? []).map((m) => [m.id, m]));
@@ -599,6 +608,7 @@ async function build() {
 
   const stats = await api(`stats/?competitors=${BARCA}`).catch(() => undefined);
 
+  globalThis.DEBUG_GAME = matches.filter((x) => x.status === 'finished').sort((a, b) => b.kickoff.localeCompare(a.kickoff))[0]?.id;
   // Details of every match that has started.
   await mkdir(`${OUT_DIR}/matches`, { recursive: true });
   let details = 0;
