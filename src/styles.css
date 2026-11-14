@@ -329,19 +329,29 @@ button { font: inherit; color: inherit; }
 
 /* Player page */
 .player-hero {
-  position: relative;
   overflow: hidden;
-  min-height: 250px;
   border-radius: var(--radius);
   border: 1px solid var(--line);
   background: repeating-linear-gradient(90deg, var(--blue) 0 40px, var(--garnet) 40px 80px);
 }
-.player-hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 30%, rgba(10, 17, 40, 0.95) 92%); }
-.player-hero-num { position: absolute; top: -10px; left: 14px; font-size: 150px; font-weight: 900; color: var(--gold); line-height: 1; z-index: 1; opacity: 0.95; }
-.player-hero-photo { position: absolute; bottom: 0; right: 4px; width: 210px; height: 230px; display: grid; place-items: center; color: rgba(255, 255, 255, 0.5); z-index: 1; }
-.player-hero-photo img { width: 100%; height: 100%; object-fit: contain; object-position: bottom; }
-.player-hero-text { position: absolute; bottom: 12px; right: 16px; left: 16px; z-index: 2; }
-.player-hero-text h1 { margin: 0; font-size: 30px; font-weight: 900; line-height: 1.1; }
+.player-hero-top { display: flex; align-items: center; justify-content: space-between; padding: 18px 18px 8px; }
+.player-hero-num { font-size: 130px; font-weight: 900; color: var(--gold); line-height: 0.9; text-shadow: 0 4px 18px rgba(0, 0, 0, 0.45); }
+.player-hero-photo {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 4px solid var(--gold);
+  background: #fff;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  flex-shrink: 0;
+}
+.player-hero-photo img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.player-hero-text { padding: 12px 18px 14px; background: linear-gradient(180deg, rgba(10, 17, 40, 0.55), rgba(10, 17, 40, 0.95)); }
+.player-hero-text h1 { margin: 0 0 2px; font-size: 30px; font-weight: 900; line-height: 1.15; }
 .stat-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .stat-tile { text-align: center; padding: 10px 2px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); }
 .stat-tile-num { font-size: 28px; font-weight: 900; color: var(--gold); line-height: 1.1; display: flex; align-items: flex-start; justify-content: center; gap: 2px; }

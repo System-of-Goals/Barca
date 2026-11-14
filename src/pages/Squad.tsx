@@ -72,7 +72,7 @@ export function SquadPage() {
       })}
       {filter === 'הכול' && others.length > 0 && (
         <section>
-          <h2 className="month">אחרים</h2>
+          <h2 className="month">🧑‍💼 צוות מקצועי</h2>
           <div className="squad-grid">
             {others.map((p) => (
               <Link key={p.id} to={`/players/${p.id}`} className="player-card">
@@ -122,8 +122,10 @@ export function PlayerPage() {
       </button>
 
       <section className="player-hero">
-        <div className="player-hero-num">{p.number ?? ''}</div>
-        <Photo p={p} className="player-hero-photo" />
+        <div className="player-hero-top">
+          <Photo p={p} className="player-hero-photo" />
+          <div className="player-hero-num">{p.number ?? ''}</div>
+        </div>
         <div className="player-hero-text">
           <h1>{p.fullName}</h1>
           <div>{[p.detailedPosition ?? p.position, p.age ? `גיל ${p.age}` : '', p.nationality].filter(Boolean).join(' · ')}</div>

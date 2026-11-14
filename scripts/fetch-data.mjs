@@ -359,7 +359,7 @@ async function build() {
   let details = 0;
   for (const m of matches.filter((x) => x.status !== 'scheduled')) {
     try {
-      const d = await matchDetail(m.id, m.competition, m.status === 'finished');
+      const d = await matchDetail(m.id, m.competition, m.status === 'finished' && !isFriendly(m.competition));
       if (m.venue === 'בית' || m.venue === 'חוץ') m.venue = d.venue ?? m.venue;
       await writeFile(`${OUT_DIR}/matches/${m.id}.json`, JSON.stringify(d));
       if (!details) console.log(`sample detail ${m.id}: ${d.events.length} events, ${d.stats.length} stats, lineup ${JSON.stringify(d.lineups.barca?.players?.slice(0, 2))}`);
