@@ -75,9 +75,11 @@ const aboutBarca = (t) => /bar[cç]a|barcelona|blaugrana|azulgrana|culé|cule|fl
 async function geminiBatch(items) {
   const key = process.env.GEMINI_API_KEY;
   const list = items.map((it, i) => `#${i}\nכותרת: ${it.title}\nתקציר: ${it.summary || '(אין)'}`).join('\n\n');
-  const prompt = `לפניך ${items.length} ידיעות על ברצלונה (בספרדית או באנגלית). לכל ידיעה כתוב כותרת וסיכום בעברית טבעית, במילים שלך (לא תרגום מילולי), ובחר נושא.
-החזר JSON בלבד: מערך באותו סדר, כל איבר: {"i": מספר, "title": "כותרת עד 12 מילים", "summary": "2-3 משפטים", "topic": "העברות" | "פציעות" | "משחקים" | "מועדון"}.
-העברות = רכישות, מכירות, השאלות, חוזים; פציעות = פציעות והיעדרויות; משחקים = משחק מסוים, תוצאה, הרכב; מועדון = כל השאר.
+  const prompt = `לפניך ${items.length} ידיעות שהזכירו את ברצלונה (בספרדית או באנגלית). לכל ידיעה:
+1. relevant: true רק אם הידיעה עוסקת בקבוצת הכדורגל הבוגרת של הגברים של FC Barcelona (שחקנים, מאמן, משחקים, העברות, הנהלה, אצטדיון). false אם היא על קבוצות אחרות של המועדון (פוטסל, כדורסל, כדוריד, נשים, נוער, ברצלונה אתלטיק) או על קבוצה אחרת לגמרי.
+2. כותרת וסיכום בעברית טבעית, במילים שלך (לא תרגום מילולי).
+3. topic: העברות = רכישות, מכירות, השאלות, חוזים, וגם שמועות ועניין בשחקן ("על הרדאר", "מתעניינים"); פציעות = פציעות והיעדרויות; משחקים = משחק מסוים, תוצאה, הרכב; מועדון = כל השאר.
+החזר JSON בלבד: מערך באותו סדר.
 
 ${list}`;
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${key}`, {
@@ -95,11 +97,12 @@ ${list}`;
             type: 'OBJECT',
             properties: {
               i: { type: 'INTEGER' },
+              relevant: { type: 'BOOLEAN' },
               title: { type: 'STRING' },
               summary: { type: 'STRING' },
               topic: { type: 'STRING', enum: ['העברות', 'פציעות', 'משחקים', 'מועדון'] },
             },
-            required: ['i', 'title', 'summary', 'topic'],
+            required: ['i', 'relevant', 'title', 'summary', 'topic'],
           },
         },
       },
@@ -111,6 +114,7 @@ ${list}`;
   const byIndex = new Map(out.map((o) => [Number(o.i), o]));
   return items.map((_, i) => {
     const o = byIndex.get(i);
+    if (o && o.relevant === false) return { skip: true };
     return o?.title ? { title: o.title, summary: o.summary, topic: topics.includes(o.topic) ? o.topic : undefined, by: 'gemini' } : undefined;
   });
 }
@@ -158,6 +162,7 @@ export async function collectNews() {
   for (const it of fresh) {
     if (!it.title || isNaN(new Date(it.publishedAt)) || new Date(it.publishedAt).getTime() < cutoff) continue;
     if (!aboutBarca(`${it.title} ${it.summary}`)) continue;
+    if (/f[uú]tbol sala|futsal|baloncesto|basket|balonmano|handball|hockey|femen|women|wom[ae]n's|liga f\b|bar[cç]a atl[eè]tic|juvenil/i.test(`${it.title} ${it.summary}`)) continue;
     const same = stories.find((s) => similar(s.original, it.title)) ?? picked.find((p) => similar(p.it.title, it.title));
     if (same) {
       if (same.sources && !same.sources.some((s) => s.name === it.source)) same.sources.push({ name: it.source, url: it.url });
@@ -182,8 +187,13 @@ export async function collectNews() {
     }
   }
   let byGemini = 0;
+  let skipped = 0;
   for (const [i, { it, extra }] of picked.entries()) {
     let he = hebrew[i];
+    if (he?.skip) {
+      skipped++;
+      continue;
+    }
     if (he) byGemini++;
     else {
       try {
@@ -211,6 +221,6 @@ export async function collectNews() {
   const translated = picked.length;
   for (const st of stories) if (st.topicBy !== 'gemini') st.topic = topicOf(st.original ?? '');
   stories.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
-  console.log(`news: ${stories.length} stories (${translated} new: ${byGemini} by Gemini, ${translated - byGemini} by machine)`);
+  console.log(`news: ${stories.length} stories (${translated} new: ${byGemini} by Gemini, ${translated - byGemini - skipped} by machine, ${skipped} not about the men's first team)`);
   return stories.slice(0, KEEP);
 }
