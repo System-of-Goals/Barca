@@ -47,15 +47,29 @@ function seasonStart(now = new Date()) {
 
 const STATUS = { 2: 'scheduled', 3: 'live', 4: 'finished' };
 
+function splitCompetition(name = '') {
+  const i = name.indexOf(' - ');
+  return i < 0 ? [name, ''] : [name.slice(0, i), name.slice(i + 3)];
+}
+
+// Friendlies get no table or rankings page.
+const isFriendly = (name) => /ידידות|גאמפר/.test(name);
+
+// Rankings in the order the spec asks for; any others follow.
+const RANKING_ORDER = ['שערים', 'בישולים', 'כרטיסים צהובים', 'כרטיסים אדומים', 'רשת נקייה', '365 מצטיינים'];
+const rankOrder = (n) => (RANKING_ORDER.includes(n) ? RANKING_ORDER.indexOf(n) : RANKING_ORDER.length);
+
 async function toMatch(g) {
   const home = g.homeCompetitor.id === BARCA;
   const us = home ? g.homeCompetitor : g.awayCompetitor;
   const them = home ? g.awayCompetitor : g.homeCompetitor;
   const status = STATUS[g.statusGroup] ?? 'scheduled';
-  const round = g.roundNum && g.roundName === 'מחזור' ? `מחזור ${g.roundNum}` : g.stageName || g.roundName || '';
+  // "סופר קאפ - חצי גמר" → competition "סופר קאפ", round "חצי גמר".
+  const [competition, stage] = splitCompetition(g.competitionDisplayName);
+  const round = g.roundNum && g.roundName === 'מחזור' ? `מחזור ${g.roundNum}` : stage || g.stageName || g.roundName || '';
   return {
     id: String(g.id),
-    competition: g.competitionDisplayName,
+    competition,
     round,
     kickoff: new Date(g.startTime).toISOString(),
     venue: home ? 'בית' : 'חוץ',
@@ -201,7 +215,7 @@ async function competitionTables(id, name) {
       }
       if (list.length) out.push({ name: t.name, rows: list });
     }
-    return out;
+    return out.sort((a, b) => rankOrder(a.name) - rankOrder(b.name));
   };
 
   return {
@@ -239,7 +253,8 @@ async function build() {
   }
 
   // Our place in every competition that has a table.
-  const competitions = [...new Map(unique.map((g) => [g.competitionId, g.competitionDisplayName])).entries()];
+  // One entry per competition (a cup's stages share one competition id).
+  const competitions = [...new Map(unique.map((g) => [g.competitionId, splitCompetition(g.competitionDisplayName)[0]])).entries()];
   const standings = [];
   for (const [id, name] of competitions) {
     try {
@@ -276,7 +291,7 @@ async function build() {
   console.log(`match details: ${details}`);
 
   const tables = [];
-  for (const [id, name] of competitions) {
+  for (const [id, name] of competitions.filter(([, n]) => !isFriendly(n))) {
     try {
       tables.push(await competitionTables(id, name));
     } catch (e) {
