@@ -616,7 +616,7 @@ async function matchPreview(gameId) {
   // Previous meetings between the two teams.
   try {
     const h = await api(`games/h2h/?gameId=${gameId}`);
-    const games = h.games ?? h.h2hGames ?? [];
+    const games = h.game?.h2hGames ?? h.h2hGames ?? h.games ?? g.h2hGames ?? [];
     preview.h2h = games
       .filter((x) => x.id !== g.id && x.statusGroup === 4)
       .sort((a, b) => b.startTime.localeCompare(a.startTime))
@@ -625,7 +625,7 @@ async function matchPreview(gameId) {
       .filter(Boolean);
     if (!globalThis.loggedH2h) {
       globalThis.loggedH2h = true;
-      console.log(`h2h ${gameId}: keys=${Object.keys(h).join(',')} games=${games.length}`);
+      console.log(`h2h ${gameId}: game keys=${Object.keys(h.game ?? {}).filter((k) => /h2h|game/i.test(k)).join(',')} games=${games.length}`);
     }
   } catch (e) {
     console.warn(`h2h ${gameId}: ${e.message}`);
