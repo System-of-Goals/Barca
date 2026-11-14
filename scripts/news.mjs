@@ -19,6 +19,7 @@ const decode = (s = '') =>
     .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
     .replace(/<[^>]+>/g, ' ')
     .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'")
+    .replace(/&nbsp;|&#160;|\u00a0/g, ' ')
     .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
     .replace(/\s+/g, ' ')
     .trim();
@@ -62,9 +63,9 @@ function similar(a, b) {
 }
 
 const TOPICS = [
-  { topic: 'העברות', re: /fichaj|traspaso|transfer|signing|sign |renov|contrato|contract|loan|cesi[oó]n|oferta|bid/i },
-  { topic: 'פציעות', re: /lesi[oó]n|lesionad|injur|baja|parte m[eé]dico|recuper|hamstring|knee/i },
-  { topic: 'משחקים', re: /partido|vs\.?|contra|previa|crónica|once|alineaci|goal|gol|match|win|derrota|victoria|empate|draw|lineup|clasico|cl[aá]sico/i },
+  { topic: 'העברות', re: /fich(ar|aj|a |[oó])|traspaso|mercado|transfer|signing|\bsign\b|renovaci|renueva|contrato|contract|cesi[oó]n|\bloan\b|oferta|cl[aá]usula|release clause|bid\b/i },
+  { topic: 'פציעות', re: /lesi[oó]n|lesionad|injur|parte m[eé]dico|rotura|esguince|hamstring|knee|muscle|sidelined|baja para|ser[aá] baja/i },
+  { topic: 'משחקים', re: /\bpartido|previa|cr[oó]nica|alineaci|\bgol(es)?\b|\bgoals?\b|\bmatch|victoria|derrota|empate|\bwin\b|\bdraw\b|lineup|cl[aá]sico|expuls|red card|jornada|vs\.?\s/i },
 ];
 const topicOf = (t) => TOPICS.find((x) => x.re.test(t))?.topic ?? 'מועדון';
 const aboutBarca = (t) => /bar[cç]a|barcelona|blaugrana|azulgrana|culé|cule|flick|camp nou|yamal|lamine|pedri|raphinha|lewandowski|cubars|de jong|olmo|ferm[ií]n|gavi|kound/i.test(t);
@@ -130,6 +131,7 @@ export async function collectNews() {
   const cutoff = Date.now() - MAX_AGE_H * 3600 * 1000;
   const stories = [...previous.filter((p) => new Date(p.publishedAt).getTime() > cutoff)];
   let translated = 0;
+  let fromMd = 0;
   // Mundo Deportivo first, so its version (with a summary) leads a merged story.
   fresh.sort((a, b) => (a.source === 'Mundo Deportivo' ? -1 : 0) - (b.source === 'Mundo Deportivo' ? -1 : 0));
   for (const it of fresh) {
@@ -140,10 +142,15 @@ export async function collectNews() {
       if (!same.sources.some((s) => s.name === it.source)) same.sources.push({ name: it.source, url: it.url });
       continue;
     }
-    if (translated >= 25) continue; // stay well inside the free translation limits
+    // Stay inside the free translation limits, and leave room for sites other than Mundo Deportivo.
+    if (translated >= 25) continue;
+    const md = it.source === 'Mundo Deportivo';
+    if (md && fromMd >= 12) continue;
+    if (!md && translated - fromMd >= 13) continue;
     try {
       const he = await toHebrew(it);
       translated++;
+      if (md) fromMd++;
       stories.push({
         id: Buffer.from(it.url).toString('base64url').slice(-16),
         title: he.title || it.title,
@@ -161,6 +168,7 @@ export async function collectNews() {
       console.warn(`news translate: ${e.message}`);
     }
   }
+  for (const st of stories) st.topic = topicOf(st.original ?? '');
   stories.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
   console.log(`news: ${stories.length} stories (${translated} new, translation: ${process.env.GEMINI_API_KEY ? 'gemini' : 'machine'})`);
   return stories.slice(0, KEEP);
