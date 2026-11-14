@@ -71,21 +71,29 @@ const topicOf = (t) => TOPICS.find((x) => x.re.test(t))?.topic ?? 'מועדון'
 const aboutBarca = (t) => /bar[cç]a|barcelona|blaugrana|azulgrana|culé|cule|flick|camp nou|yamal|lamine|pedri|raphinha|lewandowski|cubars|de jong|olmo|ferm[ií]n|gavi|kound/i.test(t);
 
 // ---------- translation ----------
-async function geminiHebrew(item) {
+// One request for all new stories: the free tier allows few requests per minute.
+async function geminiBatch(items) {
   const key = process.env.GEMINI_API_KEY;
-  const prompt = `סכם את הידיעה הבאה על ברצלונה בעברית טבעית, במילים שלך (לא תרגום מילולי).
-החזר JSON בלבד: {"title": "כותרת בעברית עד 12 מילים", "summary": "2-3 משפטים בעברית", "topic": "העברות" | "פציעות" | "משחקים" | "מועדון"}.
-topic: העברות = רכישות, מכירות, השאלות, חוזים; פציעות = פציעות והיעדרויות; משחקים = משחק מסוים, תוצאה, הרכב; מועדון = כל השאר.
-כותרת: ${item.title}
-תקציר: ${item.summary || '(אין)'}`;
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`, {
+  const list = items.map((it, i) => `#${i}\nכותרת: ${it.title}\nתקציר: ${it.summary || '(אין)'}`).join('\n\n');
+  const prompt = `לפניך ${items.length} ידיעות על ברצלונה (בספרדית או באנגלית). לכל ידיעה כתוב כותרת וסיכום בעברית טבעית, במילים שלך (לא תרגום מילולי), ובחר נושא.
+החזר JSON בלבד: מערך באותו סדר, כל איבר: {"i": מספר, "title": "כותרת עד 12 מילים", "summary": "2-3 משפטים", "topic": "העברות" | "פציעות" | "משחקים" | "מועדון"}.
+העברות = רכישות, מכירות, השאלות, חוזים; פציעות = פציעות והיעדרויות; משחקים = משחק מסוים, תוצאה, הרכב; מועדון = כל השאר.
+
+${list}`;
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent?key=${key}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
+    signal: AbortSignal.timeout(90_000),
     body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: 'application/json' } }),
   });
   if (!r.ok) throw new Error(`gemini HTTP ${r.status}`);
   const out = JSON.parse((await r.json()).candidates[0].content.parts[0].text);
-  return { title: out.title, summary: out.summary, topic: ['העברות', 'פציעות', 'משחקים', 'מועדון'].includes(out.topic) ? out.topic : undefined, by: 'gemini' };
+  const topics = ['העברות', 'פציעות', 'משחקים', 'מועדון'];
+  const byIndex = new Map(out.map((o) => [Number(o.i), o]));
+  return items.map((_, i) => {
+    const o = byIndex.get(i);
+    return o?.title ? { title: o.title, summary: o.summary, topic: topics.includes(o.topic) ? o.topic : undefined, by: 'gemini' } : undefined;
+  });
 }
 
 async function myMemory(text, lang) {
@@ -96,14 +104,7 @@ async function myMemory(text, lang) {
   return decode(j.responseData.translatedText);
 }
 
-async function toHebrew(item) {
-  if (process.env.GEMINI_API_KEY) {
-    try {
-      return await geminiHebrew(item);
-    } catch (e) {
-      console.warn(`news: ${e.message} – using machine translation`);
-    }
-  }
+async function machineHebrew(item) {
   return { title: await myMemory(item.title, item.lang), summary: await myMemory(item.summary, item.lang), by: 'machine' };
 }
 
@@ -131,49 +132,66 @@ export async function collectNews() {
 
   const cutoff = Date.now() - MAX_AGE_H * 3600 * 1000;
   const stories = [...previous.filter((p) => new Date(p.publishedAt).getTime() > cutoff)];
-  let translated = 0;
   let fromMd = 0;
+  const picked = [];
   // Mundo Deportivo first, so its version (with a summary) leads a merged story.
   fresh.sort((a, b) => (a.source === 'Mundo Deportivo' ? -1 : 0) - (b.source === 'Mundo Deportivo' ? -1 : 0));
   for (const it of fresh) {
     if (!it.title || isNaN(new Date(it.publishedAt)) || new Date(it.publishedAt).getTime() < cutoff) continue;
     if (!aboutBarca(`${it.title} ${it.summary}`)) continue;
-    const same = stories.find((s) => similar(s.original, it.title));
+    const same = stories.find((s) => similar(s.original, it.title)) ?? picked.find((p) => similar(p.it.title, it.title));
     if (same) {
-      if (!same.sources.some((s) => s.name === it.source)) same.sources.push({ name: it.source, url: it.url });
+      if (same.sources && !same.sources.some((s) => s.name === it.source)) same.sources.push({ name: it.source, url: it.url });
+      if (same.it && !same.extra.some((s) => s.name === it.source) && same.it.source !== it.source) same.extra.push({ name: it.source, url: it.url });
       continue;
     }
-    // Stay inside the free translation limits, and leave room for sites other than Mundo Deportivo.
-    if (translated >= 25) continue;
+    // Stay inside the free limits, and leave room for sites other than Mundo Deportivo.
+    if (picked.length >= 25) continue;
     const md = it.source === 'Mundo Deportivo';
     if (md && fromMd >= 12) continue;
-    if (!md && translated - fromMd >= 13) continue;
+    if (!md && picked.length - fromMd >= 13) continue;
+    if (md) fromMd++;
+    picked.push({ it, extra: [] });
+  }
+
+  let hebrew = picked.map(() => undefined);
+  if (process.env.GEMINI_API_KEY && picked.length) {
     try {
-      const started = Date.now();
-      const he = await toHebrew(it);
-      if (Date.now() - started > 10_000) console.warn(`news: slow translation (${Math.round((Date.now() - started) / 1000)}s)`);
-      translated++;
-      if (md) fromMd++;
-      stories.push({
-        id: Buffer.from(it.url).toString('base64url').slice(-16),
-        title: he.title || it.title,
-        summary: he.summary,
-        translatedBy: he.by,
-        original: it.title,
-        topic: he.topic ?? topicOf(`${it.title} ${it.summary}`),
-        topicBy: he.topic ? 'gemini' : 'words',
-        publishedAt: it.publishedAt,
-        source: it.source,
-        url: it.url,
-        sources: [{ name: it.source, url: it.url }],
-      });
-      await new Promise((ok) => setTimeout(ok, 400));
+      hebrew = await geminiBatch(picked.map((p) => p.it));
     } catch (e) {
-      console.warn(`news translate: ${e.message}`);
+      console.warn(`news: ${e.message} – using machine translation`);
     }
   }
+  let byGemini = 0;
+  for (const [i, { it, extra }] of picked.entries()) {
+    let he = hebrew[i];
+    if (he) byGemini++;
+    else {
+      try {
+        he = await machineHebrew(it);
+        await new Promise((ok) => setTimeout(ok, 300));
+      } catch (e) {
+        console.warn(`news translate: ${e.message}`);
+        continue;
+      }
+    }
+    stories.push({
+      id: Buffer.from(it.url).toString('base64url').slice(-16),
+      title: he.title || it.title,
+      summary: he.summary,
+      translatedBy: he.by,
+      original: it.title,
+      topic: he.topic ?? topicOf(`${it.title} ${it.summary}`),
+      topicBy: he.topic ? 'gemini' : 'words',
+      publishedAt: it.publishedAt,
+      source: it.source,
+      url: it.url,
+      sources: [{ name: it.source, url: it.url }, ...extra],
+    });
+  }
+  const translated = picked.length;
   for (const st of stories) if (st.topicBy !== 'gemini') st.topic = topicOf(st.original ?? '');
   stories.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
-  console.log(`news: ${stories.length} stories (${translated} new, translation: ${process.env.GEMINI_API_KEY ? 'gemini' : 'machine'})`);
+  console.log(`news: ${stories.length} stories (${translated} new: ${byGemini} by Gemini, ${translated - byGemini} by machine)`);
   return stories.slice(0, KEEP);
 }
