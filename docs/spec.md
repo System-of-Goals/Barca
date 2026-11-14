@@ -276,8 +276,8 @@
 ## החלטות טכניות ⏳ (פתוח)
 
 ### אחסון האתר ✅ (הוחלט)
-- המאגר: **`System-of-Goals/barca`** – ציבורי.
-- פרסום: GitHub Pages, בחינם. כתובת: `https://system-of-goals.github.io/barca/`
+- המאגר: **`System-of-Goals/Barca`** – ציבורי.
+- פרסום: GitHub Pages, בחינם. כתובת: `https://system-of-goals.github.io/Barca/`
 - עדכון נתונים וחדשות: GitHub Actions כל 15 דקות – חינם במאגר ציבורי.
 - מפתחות לשירותים (נתוני כדורגל, תרגום) – נשמרים ב-GitHub Secrets, מוצפנים ולא גלויים.
 - **אין במאגר מידע אישי.**
