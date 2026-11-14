@@ -36,20 +36,17 @@ export interface Leader {
   competition?: string; // which competition the count is for
 }
 
+// A post from the Telegram channel (public/data/news.json). The full post is shown
+// with Telegram's embed widget; the fields here are for lists and the home page.
 export interface NewsItem {
-  id: string;
-  title: string; // Hebrew
-  summary?: string; // Hebrew
-  original?: string; // the source's headline
-  topic?: 'העברות' | 'פציעות' | 'משחקים' | 'מועדון';
-  translatedBy?: 'gemini' | 'machine' | 'original';
-  // Extended summary (250–350 words) written from the full article.
-  detail?: { short: string; points: string[]; quotes: { who?: string; text: string }[]; meaning: string };
-  source: string;
-  sources?: { name: string; url: string }[];
+  id: string; // message number in the channel
+  post: string; // "barcamaniail/1234"
+  title: string; // first line of the post
+  text?: string; // short preview
+  media?: 'photo' | 'video';
+  source: string; // channel name
   publishedAt: string; // ISO
-  image?: string;
-  url: string;
+  url: string; // https://t.me/barcamaniail/1234
 }
 
 export interface HistoryEvent {

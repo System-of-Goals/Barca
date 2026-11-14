@@ -3,6 +3,7 @@ import { formatDate, formatTime } from '../lib/format';
 
 const sources = [
   { what: 'משחקים, תוצאות, טבלאות, הרכבים, סטטיסטיקה, סגל ותמונות', name: '365Scores', url: 'https://www.365scores.com/he' },
+  { what: 'חדשות', name: 'בארסה מניה (טלגרם)', url: 'https://t.me/barcamaniail' },
   { what: 'קריירה, תארים ופרסים של שחקנים', name: 'ויקיפדיה (Wikidata)', url: 'https://www.wikidata.org' },
   { what: 'תמונות האגדות', name: 'ויקישיתוף', url: 'https://commons.wikimedia.org' },
   { what: 'דוחות כספיים', name: 'FC Barcelona', url: 'https://www.fcbarcelona.com' },

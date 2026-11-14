@@ -69,9 +69,5 @@ export const sampleData: SiteData = {
   topScorer: { playerId: 'lewandowski', name: 'לבנדובסקי', value: 12 },
   topAssister: { playerId: 'yamal', name: 'ימאל', value: 8 },
   todayInHistory: { year: 1899, text: 'דוגמה: אירוע מההיסטוריה של המועדון שקרה בתאריך הזה.' },
-  news: [
-    { id: 'n1', title: 'דוגמה: כותרת ידיעה ראשונה בעברית', source: 'Mundo Deportivo', publishedAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(), url: '#' },
-    { id: 'n2', title: 'דוגמה: כותרת ידיעה שנייה בעברית', source: 'Sport', publishedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), url: '#' },
-    { id: 'n3', title: 'דוגמה: כותרת ידיעה שלישית בעברית', source: 'ESPN', publishedAt: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(), url: '#' },
-  ],
+  news: [],
 };

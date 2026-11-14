@@ -428,3 +428,10 @@ button { font: inherit; color: inherit; }
 .last-vs .vs-team span { font-size: 15px; text-align: center; line-height: 1.25; }
 .last-vs .vs-score { font-size: 44px; }
 .last-meta { display: flex; justify-content: center; gap: 8px; align-items: center; }
+
+/* Telegram posts */
+.tg-post { min-height: 80px; border-radius: var(--radius); overflow: hidden; }
+.tg-post iframe { width: 100% !important; border-radius: var(--radius); }
+.tg-channel { display: flex; align-items: center; gap: 10px; }
+.tg-channel > span:nth-child(2) { flex: 1; }
+.tg-logo { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: #229ed9; font-size: 18px; }

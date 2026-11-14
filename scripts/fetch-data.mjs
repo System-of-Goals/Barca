@@ -5,7 +5,7 @@
 
 import { appendFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { collectNews } from './news.mjs';
+import { collectTelegram } from './telegram.mjs';
 
 // No request may hang the robot: every fetch gives up after 25 seconds.
 const plainFetch = globalThis.fetch;
@@ -693,7 +693,7 @@ async function build() {
     topAssister: await leader(stats, 'בישולים'),
     news: await (async () => {
       try {
-        const n = await collectNews();
+        const n = await collectTelegram();
         await writeFile(`${OUT_DIR}/news.json`, JSON.stringify(n));
         return n.slice(0, 3);
       } catch (e) {

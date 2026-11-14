@@ -190,7 +190,7 @@ export function Home({ data }: { data: SiteData }) {
               <div className="news-thumb" />
               <div>
                 <div className="news-title">{n.title}</div>
-                <div className="small">{n.source} · {timeAgo(n.publishedAt)}</div>
+                <div className="small">{n.media === 'photo' ? '📷 ' : n.media === 'video' ? '🎬 ' : ''}טלגרם · {n.source} · {timeAgo(n.publishedAt)}</div>
               </div>
             </Link>
           ))}
