@@ -74,9 +74,10 @@ function returnInHebrew(text) {
   const part = { Early: 'תחילת ', Mid: 'אמצע ', Late: 'סוף ' }[m[1]] ?? '';
   return `${part}${MONTHS_HE[MONTHS.indexOf(m[2])]} ${m[3]}`;
 }
-function missingPlayers(game) {
+function missingPlayers(game, side = 'barca') {
   if (!game) return [];
-  const us = game.homeCompetitor?.id === BARCA ? game.homeCompetitor : game.awayCompetitor;
+  const barcaHome = game.homeCompetitor?.id === BARCA;
+  const us = (side === 'barca') === barcaHome ? game.homeCompetitor : game.awayCompetitor;
   const people = new Map((game.members ?? []).map((m) => [m.id, m]));
   return (us?.lineups?.members ?? [])
     .filter((m) => m.status === 3)
@@ -85,6 +86,7 @@ function missingPlayers(game) {
       const suspended = Boolean(m.suspension) || /השעי|כרטיס|הרחק/.test(reason ?? '') || (m.injury?.categoryId ?? 1) !== 1;
       return {
         playerId: String(people.get(m.id)?.athleteId ?? m.id),
+        name: people.get(m.id)?.shortName ?? people.get(m.id)?.name,
         kind: suspended ? 'suspension' : 'injury',
         reason,
         expectedReturn: returnInHebrew(m.injury?.expectedReturn),
@@ -576,6 +578,68 @@ async function squadFile() {
   return { coach, players, unavailableSource };
 }
 
+// ---------- before a match: form, missing players, previous meetings ----------
+function outcomeFor(g, teamId) {
+  const mine = g.homeCompetitor?.id === teamId ? g.homeCompetitor : g.awayCompetitor;
+  const other = mine === g.homeCompetitor ? g.awayCompetitor : g.homeCompetitor;
+  if (!mine || !other || mine.score < 0 || other.score < 0) return undefined;
+  return {
+    date: new Date(g.startTime).toISOString(),
+    opponent: other.name,
+    home: mine === g.homeCompetitor,
+    for: mine.score,
+    against: other.score,
+    result: mine.score > other.score ? 'win' : mine.score < other.score ? 'loss' : 'draw',
+    competition: splitCompetition(g.competitionDisplayName)[0],
+  };
+}
+
+async function lastFive(teamId) {
+  const res = await api(`games/results/?competitors=${teamId}`);
+  return (res.games ?? [])
+    .filter((g) => g.statusGroup === 4)
+    .sort((a, b) => b.startTime.localeCompare(a.startTime))
+    .slice(0, 5)
+    .map((g) => outcomeFor(g, teamId))
+    .filter(Boolean);
+}
+
+async function matchPreview(gameId) {
+  const { game: g } = await api(`game/?gameId=${gameId}`);
+  const barcaHome = g.homeCompetitor.id === BARCA;
+  const them = barcaHome ? g.awayCompetitor : g.homeCompetitor;
+  const preview = {
+    form: { barca: await lastFive(BARCA).catch(() => []), opp: await lastFive(them.id).catch(() => []) },
+    missing: { barca: missingPlayers(g, 'barca'), opp: missingPlayers(g, 'opp') },
+    h2h: [],
+  };
+  // Previous meetings between the two teams.
+  try {
+    const h = await api(`games/h2h/?gameId=${gameId}`);
+    const games = h.games ?? h.h2hGames ?? [];
+    preview.h2h = games
+      .filter((x) => x.id !== g.id && x.statusGroup === 4)
+      .sort((a, b) => b.startTime.localeCompare(a.startTime))
+      .slice(0, 5)
+      .map((x) => outcomeFor(x, BARCA))
+      .filter(Boolean);
+    if (!globalThis.loggedH2h) {
+      globalThis.loggedH2h = true;
+      console.log(`h2h ${gameId}: keys=${Object.keys(h).join(',')} games=${games.length}`);
+    }
+  } catch (e) {
+    console.warn(`h2h ${gameId}: ${e.message}`);
+  }
+  return {
+    id: String(g.id),
+    venue: g.venue?.name,
+    events: [],
+    lineups: {},
+    stats: [],
+    preview,
+  };
+}
+
 async function build() {
   if (process.env.FORCE_BACKUP) throw new Error('backup test (FORCE_BACKUP)');
   await mkdir(IMG_DIR, { recursive: true });
@@ -641,6 +705,17 @@ async function build() {
     }
   }
   console.log(`match details: ${details}`);
+
+  // Preview pages for the next two matches.
+  for (const m of matches.filter((x) => x.status === 'scheduled').sort((a, b) => a.kickoff.localeCompare(b.kickoff)).slice(0, 2)) {
+    try {
+      const p = await matchPreview(m.id);
+      await writeFile(`${OUT_DIR}/matches/${m.id}.json`, JSON.stringify(p));
+      console.log(`preview ${m.id}: form ${p.preview.form.barca.length}/${p.preview.form.opp.length}, missing ${p.preview.missing.barca.length}/${p.preview.missing.opp.length}, h2h ${p.preview.h2h.length}`);
+    } catch (e) {
+      console.warn(`preview ${m.id}: ${e.message}`);
+    }
+  }
 
   try {
     const squad = await squadFile();

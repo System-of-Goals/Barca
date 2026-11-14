@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
-import type { Lineup, Match, MatchDetail, MatchEvent, SiteData } from '../data/types';
+import type { FormGame, Lineup, Match, MatchDetail, MatchEvent, MatchPreview, MissingPlayer, SiteData } from '../data/types';
 import { asset } from '../data/useSiteData';
 import { formatDate, formatTime, formatWeekday, outcome, outcomeLabel, pad2, splitCountdown } from '../lib/format';
 
@@ -124,11 +124,88 @@ function Hero({ m, crest, venue }: { m: Match; crest?: string; venue?: string })
   );
 }
 
+const letter = { win: 'נ', draw: 'ת', loss: 'ה' } as const;
+
+function FormRow({ title, games }: { title: string; games: FormGame[] }) {
+  return (
+    <div className="form-block">
+      <div className="spell-team">{title}</div>
+      {games.length === 0 ? (
+        <div className="small">אין נתונים</div>
+      ) : (
+        <>
+          <div className="form-rings">
+            {[...games].reverse().map((g, i) => <span key={i} className={`ring tiny ${g.result}`}>{letter[g.result]}</span>)}
+          </div>
+          {games.map((g, i) => (
+            <div key={i} className="form-line small">
+              <span className={`ring tiny ${g.result}`}>{letter[g.result]}</span>
+              <bdi className="form-score">{g.for}–{g.against}</bdi>
+              <span className="form-opp">{g.opponent} ({g.home ? 'ב' : 'ח'})</span>
+              <span>{formatDate(g.date)}</span>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+function MissingList({ title, list }: { title: string; list: MissingPlayer[] }) {
+  return (
+    <div className="form-block">
+      <div className="spell-team">{title}</div>
+      {list.length === 0 ? (
+        <div className="small">לא פורסמו חסרים</div>
+      ) : (
+        list.map((m) => (
+          <div key={m.playerId} className="form-line small">
+            <span>{m.kind === 'injury' ? '🩹' : '🟥'}</span>
+            <span className="form-opp"><b style={{ color: 'var(--text)' }}>{m.name}</b>{m.reason ? ` · ${m.reason}` : ''}</span>
+            {m.expectedReturn && <span>{m.expectedReturn}</span>}
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+function Preview({ p, opponent }: { p: MatchPreview; opponent: string }) {
+  return (
+    <>
+      <section className="card">
+        <h2 className="card-title">📈 5 המשחקים האחרונים</h2>
+        <FormRow title="ברצלונה" games={p.form.barca} />
+        <FormRow title={opponent} games={p.form.opp} />
+      </section>
+      <section className="card">
+        <h2 className="card-title">🚑 חסרים</h2>
+        <MissingList title="ברצלונה" list={p.missing.barca} />
+        <MissingList title={opponent} list={p.missing.opp} />
+        <div className="small" style={{ marginTop: 6 }}>הרשימה מתעדכנת ככל שהמשחק מתקרב.</div>
+      </section>
+      {p.h2h.length > 0 && (
+        <section className="card">
+          <h2 className="card-title">⚔️ מפגשים קודמים</h2>
+          {p.h2h.map((g, i) => (
+            <div key={i} className="form-line">
+              <span className={`ring tiny ${g.result}`}>{letter[g.result]}</span>
+              <bdi className="form-score">{g.for}–{g.against}</bdi>
+              <span className="form-opp small">{g.competition} · {g.home ? 'בית' : 'חוץ'}</span>
+              <span className="small">{formatDate(g.date)}</span>
+            </div>
+          ))}
+        </section>
+      )}
+    </>
+  );
+}
+
 export function MatchPage({ data }: { data: SiteData }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const match = data.matches.find((m) => m.id === id);
-  const detail = useDetail(match && match.status !== 'scheduled' ? id : undefined);
+  const detail = useDetail(match ? id : undefined);
   const [tab, setTab] = useState<'lineups' | 'stats' | 'events'>('lineups');
   const [team, setTeam] = useState<'barca' | 'opp'>('barca');
   const [allStats, setAllStats] = useState(false);
@@ -160,7 +237,12 @@ export function MatchPage({ data }: { data: SiteData }) {
         </section>
       )}
 
-      {detail && (
+      {match.status === 'scheduled' && detail?.preview && <Preview p={detail.preview} opponent={match.opponent.name} />}
+      {match.status === 'scheduled' && !detail?.preview && detail !== undefined && (
+        <div className="card soon">פרטים לקראת המשחק (כושר, חסרים ומפגשים קודמים) יופיעו כשהמשחק יהיה בין שני המשחקים הקרובים.</div>
+      )}
+
+      {detail && match.status !== 'scheduled' && (
         <>
           <div className="tabs">
             <button className={tab === 'lineups' ? 'active' : ''} onClick={() => setTab('lineups')}>הרכבים</button>

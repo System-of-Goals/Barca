@@ -103,8 +103,33 @@ export interface MatchStat {
   barcaShare?: number; // 0..1
 }
 
+export interface FormGame {
+  date: string;
+  opponent: string;
+  home: boolean;
+  for: number;
+  against: number;
+  result: 'win' | 'draw' | 'loss';
+  competition: string;
+}
+
+export interface MissingPlayer {
+  playerId: string;
+  name?: string;
+  kind: 'injury' | 'suspension';
+  reason?: string;
+  expectedReturn?: string;
+}
+
+export interface MatchPreview {
+  form: { barca: FormGame[]; opp: FormGame[] };
+  missing: { barca: MissingPlayer[]; opp: MissingPlayer[] };
+  h2h: FormGame[]; // from Barcelona's side
+}
+
 export interface MatchDetail {
   id: string;
+  preview?: MatchPreview;
   venue?: string;
   attendance?: number;
   referee?: string;

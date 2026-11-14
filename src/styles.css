@@ -438,3 +438,11 @@ button { font: inherit; color: inherit; }
 .news-thumb { overflow: hidden; }
 .news-thumb img { width: 100%; height: 100%; object-fit: cover; }
 .news-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Match preview */
+.form-block { padding: 8px 0; }
+.form-block + .form-block { border-top: 1px solid var(--line); }
+.form-rings { display: flex; gap: 4px; margin: 6px 0; }
+.form-line { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.form-line .form-score { font-weight: 800; min-width: 34px; font-variant-numeric: tabular-nums; }
+.form-line .form-opp { flex: 1; }
