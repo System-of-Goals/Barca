@@ -81,6 +81,82 @@ async function leader(stats, tableName) {
   };
 }
 
+
+// Full details of one played (or live) match: events, lineups, statistics.
+// Written to public/data/matches/<id>.json, read by the match page.
+async function matchDetail(gameId) {
+  const [{ game: g }, statsRes] = await Promise.all([
+    api(`game/?gameId=${gameId}`),
+    api(`game/stats/?games=${gameId}`).catch(() => ({})),
+  ]);
+  const barcaHome = g.homeCompetitor.id === BARCA;
+  const usC = barcaHome ? g.homeCompetitor : g.awayCompetitor;
+  const themC = barcaHome ? g.awayCompetitor : g.homeCompetitor;
+  const people = new Map((g.members ?? []).map((m) => [m.id, m]));
+  const nameOf = (id) => {
+    const m = people.get(id);
+    return m ? m.shortName || m.name : undefined;
+  };
+
+  const kindOf = (t) => {
+    if (t.id === 1) return 'goal';
+    if (/חילוף/.test(t.name)) return 'sub';
+    if (/צהוב/.test(t.name) || /צהוב/.test(t.subTypeName ?? '')) return 'yellow';
+    if (/אדום/.test(t.name) || /אדום/.test(t.subTypeName ?? '')) return 'red';
+    return 'other';
+  };
+  const events = (g.events ?? [])
+    .filter((e) => e.isMajor || kindOf(e.eventType) !== 'other')
+    .map((e) => ({
+      minute: e.gameTimeDisplay || `${e.gameTime}'`,
+      side: e.competitorId === BARCA ? 'barca' : 'opp',
+      kind: kindOf(e.eventType),
+      label: e.eventType.subTypeName && e.eventType.id === 1 && e.eventType.subTypeName !== 'שער שדה' ? e.eventType.subTypeName : e.eventType.name,
+      player: nameOf(e.playerId),
+      extra: (e.extraPlayers ?? []).map(nameOf).filter(Boolean),
+    }));
+
+  async function lineup(c, withPhotos) {
+    const lu = c.lineups;
+    if (!lu?.members?.length) return undefined;
+    const players = [];
+    for (const m of lu.members) {
+      const id = m.id ?? m.playerId ?? m.athleteId;
+      const p = people.get(id) ?? {};
+      players.push({
+        id: String(p.athleteId ?? id),
+        name: p.shortName || p.name || '',
+        number: p.jerseyNumber,
+        starting: m.status === 1,
+        position: m.position?.name,
+        line: m.yardFormation?.fieldLine,
+        side: m.yardFormation?.fieldSide,
+        rating: typeof m.ranking === 'number' ? m.ranking : undefined,
+        photo: withPhotos && p.athleteId ? await saveImage('Athletes', p.athleteId, p.imageVersion) : undefined,
+      });
+    }
+    return { formation: lu.formation, players };
+  }
+
+  const all = statsRes.statistics ?? [];
+  const stats = [];
+  for (const st of all.filter((x) => x.competitorId === usC.id)) {
+    const other = all.find((x) => x.id === st.id && x.competitorId === themC.id);
+    if (!other) continue;
+    stats.push({ name: st.name, barca: st.value, opp: other.value, barcaShare: st.valuePercentage });
+  }
+
+  return {
+    id: String(g.id),
+    venue: g.venue?.name,
+    attendance: g.venue?.attendance,
+    referee: g.officials?.[0]?.name,
+    events,
+    lineups: { barca: await lineup(usC, true), opp: await lineup(themC, false) },
+    stats,
+  };
+}
+
 async function build() {
   await mkdir(IMG_DIR, { recursive: true });
   const crest = await saveImage('Competitors', BARCA, 9);
@@ -127,6 +203,22 @@ async function build() {
   }
 
   const stats = await api(`stats/?competitors=${BARCA}`).catch(() => undefined);
+
+  // Details of every match that has started.
+  await mkdir(`${OUT_DIR}/matches`, { recursive: true });
+  let details = 0;
+  for (const m of matches.filter((x) => x.status !== 'scheduled')) {
+    try {
+      const d = await matchDetail(m.id);
+      if (m.venue === 'בית' || m.venue === 'חוץ') m.venue = d.venue ?? m.venue;
+      await writeFile(`${OUT_DIR}/matches/${m.id}.json`, JSON.stringify(d));
+      if (!details) console.log(`sample detail ${m.id}: ${d.events.length} events, ${d.stats.length} stats, lineup ${JSON.stringify(d.lineups.barca?.players?.slice(0, 2))}`);
+      details++;
+    } catch (e) {
+      console.warn(`match ${m.id}: ${e.message}`);
+    }
+  }
+  console.log(`match details: ${details}`);
 
   return {
     isSample: false,

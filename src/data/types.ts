@@ -61,3 +61,47 @@ export interface SiteData {
   todayInHistory?: HistoryEvent;
   news: NewsItem[];
 }
+
+// Details of a single match: public/data/matches/<id>.json
+export interface MatchEvent {
+  minute: string;
+  side: 'barca' | 'opp';
+  kind: 'goal' | 'yellow' | 'red' | 'sub' | 'other';
+  label: string; // Hebrew, from the source
+  player?: string;
+  extra: string[]; // assist, or the player coming on
+}
+
+export interface LineupPlayer {
+  id: string;
+  name: string;
+  number?: number;
+  starting: boolean;
+  position?: string;
+  line?: number; // 0 = own goal line … 100 = opponent's
+  side?: number; // 0 … 100 across the pitch
+  rating?: number;
+  photo?: string;
+}
+
+export interface Lineup {
+  formation?: string;
+  players: LineupPlayer[];
+}
+
+export interface MatchStat {
+  name: string;
+  barca: string;
+  opp: string;
+  barcaShare?: number; // 0..1
+}
+
+export interface MatchDetail {
+  id: string;
+  venue?: string;
+  attendance?: number;
+  referee?: string;
+  events: MatchEvent[];
+  lineups: { barca?: Lineup; opp?: Lineup };
+  stats: MatchStat[];
+}
