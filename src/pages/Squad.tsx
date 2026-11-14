@@ -217,10 +217,10 @@ export function PlayerPage() {
             {p.titles?.length ? (
               p.titles.map((t) => (
                 <div key={t.competition} className="title-row">
-                  <span className="title-count">{t.years.length}</span>
+                  <span className="title-count">{t.seasons.length}</span>
                   <div>
                     <div className="spell-team">{t.competition}</div>
-                    <div className="small">{t.years.join(' · ')}</div>
+                    <div className="small"><bdi dir="ltr">{t.seasons.join(' · ')}</bdi></div>
                   </div>
                 </div>
               ))

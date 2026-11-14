@@ -281,7 +281,7 @@ async function competitionTables(id, name) {
 const SPARQL = 'https://query.wikidata.org/sparql';
 const WD_HEADERS = { 'user-agent': 'personal-fan-site-bot/1.0 (non-commercial; one query a day)', accept: 'application/sparql-results+json' };
 const CAREER_URL = 'https://system-of-goals.github.io/Barca/data/careers.json';
-const CAREER_VERSION = 4; // bump to refresh before the daily update
+const CAREER_VERSION = 5; // bump to refresh before the daily update
 
 async function sparql(query) {
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -367,28 +367,64 @@ async function careers(squad) {
     e.awards.push(award);
   }
 
-  // Every competition season Barcelona won: "winner = FC Barcelona" on a season item.
-  const won = await sparql(`SELECT ?compLabel ?start ?end ?time WHERE {
-  ?season wdt:P1346 wd:Q7156; wdt:P3450 ?comp.
-  OPTIONAL { ?season wdt:P580 ?start } OPTIONAL { ?season wdt:P582 ?end } OPTIONAL { ?season wdt:P585 ?time }
+  // Every competition season Barcelona won. On Wikidata the winner is sometimes set on the
+  // season item and sometimes only on the final (which is "part of" the season), so ask for both.
+  const won = await sparql(`SELECT DISTINCT ?compLabel ?start ?end ?time WHERE {
+  ?item wdt:P1346 wd:Q7156.
+  OPTIONAL { ?item wdt:P3450 ?c1 }
+  OPTIONAL { ?item wdt:P361 ?edition. ?edition wdt:P3450 ?c2.
+             OPTIONAL { ?edition wdt:P580 ?es } OPTIONAL { ?edition wdt:P582 ?ee } }
+  BIND(COALESCE(?c1, ?c2) AS ?comp)
+  FILTER(BOUND(?comp))
+  OPTIONAL { ?item wdt:P580 ?s } OPTIONAL { ?item wdt:P582 ?e } OPTIONAL { ?item wdt:P585 ?time }
+  BIND(COALESCE(?s, ?es) AS ?start) BIND(COALESCE(?e, ?ee) AS ?end)
   SERVICE wikibase:label { bd:serviceParam wikibase:language "he,en". }
 }`);
-  const barcaTitles = won
-    .map((b) => ({ competition: v(b, 'compLabel'), year: yearOf(v(b, 'end')) ?? yearOf(v(b, 'time')) ?? yearOf(v(b, 'start')) }))
-    .filter((t) => t.competition && t.year);
-  console.log(`barca titles on Wikidata: ${barcaTitles.length}`);
 
-  // A player shares a title if he was at Barcelona that year (by the years on Wikidata).
+  // Football seasons run from summer to summer: 2024/25 is August 2024 – May 2025.
+  // A one-off event (a Super Cup in January 2025) belongs to the season it falls in.
+  const seasonOf = (start, end, time) => {
+    const sy = yearOf(start);
+    const ey = yearOf(end);
+    let first;
+    if (sy && ey && ey > sy) first = sy;
+    else {
+      const d = time ?? end ?? start;
+      if (!d) return undefined;
+      const y = Number(d.slice(0, 4));
+      const month = Number(d.slice(5, 7)) || 6;
+      first = month >= 7 ? y : y - 1;
+    }
+    return { label: `${first}/${String(first + 1).slice(2)}`, endYear: first + 1 };
+  };
+
+  const seen = new Set();
+  const barcaTitles = [];
+  for (const b of won) {
+    const competition = v(b, 'compLabel');
+    const season = seasonOf(v(b, 'start'), v(b, 'end'), v(b, 'time'));
+    if (!competition || !season || /גמפר|Gamper/i.test(competition)) continue;
+    const key = `${competition}|${season.label}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    barcaTitles.push({ competition, ...season });
+  }
+  const recent = barcaTitles.filter((t) => t.endYear >= 2023).map((t) => `${t.competition} ${t.label}`).sort();
+  console.log(`barca titles on Wikidata: ${barcaTitles.length}; since 2022/23: ${recent.join(', ')}`);
+
+  // A player shares a title if he was at Barcelona during that season:
+  // he joined before the season ended, and hadn't left before it ended.
   const titlesFor = (career) => {
     const spells = career.filter((c) => !c.national && /^ברצלונה$|^FC Barcelona$/.test(c.team ?? ''));
     const byComp = new Map();
     for (const t of barcaTitles) {
-      // A season is listed by the year it ended; a player who joined that summer missed it.
-      if (!spells.some((c) => (c.from ?? 9999) < t.year && t.year <= (c.to ?? 9999))) continue;
-      if (!byComp.has(t.competition)) byComp.set(t.competition, new Set());
-      byComp.get(t.competition).add(t.year);
+      if (!spells.some((c) => (c.from ?? 9999) < t.endYear && t.endYear <= (c.to ?? 9999))) continue;
+      if (!byComp.has(t.competition)) byComp.set(t.competition, []);
+      byComp.get(t.competition).push(t);
     }
-    return [...byComp].map(([competition, years]) => ({ competition, years: [...years].sort() })).sort((a, b) => b.years.length - a.years.length);
+    return [...byComp]
+      .map(([competition, list]) => ({ competition, seasons: list.sort((x, y) => x.endYear - y.endYear).map((t) => t.label) }))
+      .sort((a, b) => b.seasons.length - a.seasons.length);
   };
 
   const players = {};
@@ -404,6 +440,8 @@ async function careers(squad) {
         }
       : null;
   }
+  const sample = squad.find((p) => /קובארסי/.test(p.name));
+  if (sample) console.log(`titles check – ${sample.name}: ${JSON.stringify(players[sample.id]?.titles)}`);
   const found = Object.values(players).filter(Boolean).length;
   const withAwards = Object.values(players).filter((x) => x?.awards.length).length;
   console.log(`careers: found ${found}/${squad.length} players on Wikidata, ${withAwards} with awards`);

@@ -172,7 +172,7 @@ export interface Player {
   // From Wikidata
   career?: CareerSpell[];
   awards?: { name?: string; year?: number }[];
-  titles?: { competition: string; years: number[] }[]; // won with Barcelona
+  titles?: { competition: string; seasons: string[] }[]; // won with Barcelona, e.g. "2024/25"
   wikipedia?: string;
 }
 
