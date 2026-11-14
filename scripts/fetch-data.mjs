@@ -281,7 +281,7 @@ async function competitionTables(id, name) {
 const SPARQL = 'https://query.wikidata.org/sparql';
 const WD_HEADERS = { 'user-agent': 'personal-fan-site-bot/1.0 (non-commercial; one query a day)', accept: 'application/sparql-results+json' };
 const CAREER_URL = 'https://system-of-goals.github.io/Barca/data/careers.json';
-const CAREER_VERSION = 3; // bump to refresh before the daily update
+const CAREER_VERSION = 4; // bump to refresh before the daily update
 
 async function sparql(query) {
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -383,7 +383,8 @@ async function careers(squad) {
     const spells = career.filter((c) => !c.national && /^ברצלונה$|^FC Barcelona$/.test(c.team ?? ''));
     const byComp = new Map();
     for (const t of barcaTitles) {
-      if (!spells.some((c) => (c.from ?? 9999) <= t.year && t.year <= (c.to ?? 9999))) continue;
+      // A season is listed by the year it ended; a player who joined that summer missed it.
+      if (!spells.some((c) => (c.from ?? 9999) < t.year && t.year <= (c.to ?? 9999))) continue;
       if (!byComp.has(t.competition)) byComp.set(t.competition, new Set());
       byComp.get(t.competition).add(t.year);
     }
