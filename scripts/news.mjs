@@ -10,6 +10,9 @@ const KEEP = 60;
 
 const FEEDS = [
   { name: 'Mundo Deportivo', lang: 'es', url: 'https://www.mundodeportivo.com/rss/futbol/fc-barcelona.xml' },
+  // Direct feeds: their links open the article itself, so it can get an extended summary.
+  { name: 'SPORT', lang: 'es', url: 'https://www.sport.es/es/rss/barca/rss.xml' },
+  { name: 'MARCA', lang: 'es', url: 'https://e00-marca.uecdn.es/rss/futbol/barcelona.xml' },
   { name: 'Google News', lang: 'es', url: 'https://news.google.com/rss/search?q=%22FC+Barcelona%22+OR+Bar%C3%A7a+when:2d&hl=es&gl=ES&ceid=ES:es' },
   { name: 'Google News', lang: 'en', url: 'https://news.google.com/rss/search?q=%22FC+Barcelona%22+when:2d&hl=en-GB&gl=GB&ceid=GB:en' },
 ];
@@ -194,7 +197,8 @@ ${list}`;
 // at most twice; when the article can't be read it keeps its short summary.
 async function deepen(stories) {
   if (!process.env.GEMINI_API_KEY) return;
-  const todo = stories.filter((s) => !s.detail && (s.detailTries ?? 0) < 2).slice(0, 8);
+  const opens = (s) => [...(s.sources ?? []), { url: s.url }].some((x) => !/news\.google\.com/.test(x.url));
+  const todo = stories.filter((s) => !s.detail && (s.detailTries ?? 0) < 2 && opens(s)).slice(0, 8);
   const ready = [];
   let blocked = 0;
   for (const st of todo) {
@@ -264,7 +268,8 @@ export async function collectNews() {
   let fromMd = 0;
   const picked = [];
   // Mundo Deportivo first, so its version (with a summary) leads a merged story.
-  fresh.sort((a, b) => (a.source === 'Mundo Deportivo' ? -1 : 0) - (b.source === 'Mundo Deportivo' ? -1 : 0));
+  const direct = (x) => (/news\.google\.com/.test(x.url) ? 1 : 0);
+  fresh.sort((a, b) => direct(a) - direct(b));
   for (const it of fresh) {
     if (!it.title || isNaN(new Date(it.publishedAt)) || new Date(it.publishedAt).getTime() < cutoff) continue;
     if (!aboutBarca(`${it.title} ${it.summary}`)) continue;
