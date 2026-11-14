@@ -157,6 +157,61 @@ async function matchDetail(gameId) {
   };
 }
 
+// Full tables and player rankings for one competition (public/data/tables.json).
+async function competitionTables(id, name) {
+  const s = await api(`standings/?competitions=${id}`).catch(() => ({}));
+  const rows = [];
+  for (const r of s.standings?.[0]?.rows ?? []) {
+    const form = (r.detailedRecentForm ?? []).slice(-5).map((g) => {
+      const mine = g.homeCompetitor.id === r.competitor.id ? g.homeCompetitor : g.awayCompetitor;
+      const other = mine === g.homeCompetitor ? g.awayCompetitor : g.homeCompetitor;
+      return mine.score > other.score ? 'win' : mine.score < other.score ? 'loss' : 'draw';
+    });
+    rows.push({
+      position: r.position,
+      team: r.competitor.name,
+      crest: await saveImage('Competitors', r.competitor.id, r.competitor.imageVersion),
+      barca: r.competitor.id === BARCA,
+      played: r.gamePlayed,
+      won: r.gamesWon,
+      drawn: r.gamesEven,
+      lost: r.gamesLost,
+      goalsFor: r.for,
+      goalsAgainst: r.against,
+      points: r.points,
+      form,
+    });
+  }
+
+  const rankings = async (path, withPhotos) => {
+    const st = await api(path).catch(() => undefined);
+    const out = [];
+    for (const t of st?.stats?.athletesStats?.tables ?? []) {
+      const list = [];
+      for (const row of (t.rows ?? []).slice(0, 10)) {
+        const team = st.competitors?.find((c) => c.id === row.entity.competitorId);
+        list.push({
+          playerId: String(row.entity.id),
+          name: row.entity.shortName || row.entity.name,
+          team: team?.name,
+          barca: row.entity.competitorId === BARCA,
+          value: row.stats?.[0]?.value ?? '',
+          photo: withPhotos && row.entity.competitorId === BARCA ? await saveImage('Athletes', row.entity.id, row.entity.imageVersion) : undefined,
+        });
+      }
+      if (list.length) out.push({ name: t.name, rows: list });
+    }
+    return out;
+  };
+
+  return {
+    competition: name,
+    rows,
+    barcaRankings: await rankings(`stats/?competitions=${id}&competitors=${BARCA}`, true),
+    allRankings: await rankings(`stats/?competitions=${id}`, true),
+  };
+}
+
 async function build() {
   await mkdir(IMG_DIR, { recursive: true });
   const crest = await saveImage('Competitors', BARCA, 9);
@@ -219,6 +274,17 @@ async function build() {
     }
   }
   console.log(`match details: ${details}`);
+
+  const tables = [];
+  for (const [id, name] of competitions) {
+    try {
+      tables.push(await competitionTables(id, name));
+    } catch (e) {
+      console.warn(`tables ${id}: ${e.message}`);
+    }
+  }
+  await writeFile(`${OUT_DIR}/tables.json`, JSON.stringify(tables));
+  console.log(`tables: ${tables.map((t) => `${t.competition} rows=${t.rows.length} rankings=${t.barcaRankings.map((r) => r.name).join('/')} | all=${t.allRankings.map((r) => r.name).join('/')}`).join(' ; ')}`);
 
   return {
     isSample: false,

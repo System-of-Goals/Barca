@@ -3,6 +3,7 @@ import { BottomNav } from './components/BottomNav';
 import { Home } from './pages/Home';
 import { Matches } from './pages/Matches';
 import { MatchPage } from './pages/MatchPage';
+import { Tables } from './pages/Tables';
 import { More, Placeholder } from './pages/Placeholder';
 import { useSiteData } from './data/useSiteData';
 
@@ -14,7 +15,7 @@ export function App() {
         <Route path="/" element={data ? <Home data={data} /> : <div className="soon">טוען…</div>} />
         <Route path="/matches" element={data ? <Matches data={data} /> : <div className="soon">טוען…</div>} />
         <Route path="/matches/:id" element={data ? <MatchPage data={data} /> : <div className="soon">טוען…</div>} />
-        <Route path="/tables" element={<Placeholder title="טבלאות" />} />
+        <Route path="/tables" element={data ? <Tables data={data} /> : <div className="soon">טוען…</div>} />
         <Route path="/news" element={<Placeholder title="חדשות" />} />
         <Route path="/more" element={<More />} />
         <Route path="/squad" element={<Placeholder title="סגל" />} />

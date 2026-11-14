@@ -105,3 +105,40 @@ export interface MatchDetail {
   lineups: { barca?: Lineup; opp?: Lineup };
   stats: MatchStat[];
 }
+
+// public/data/tables.json: one entry per competition Barcelona plays in.
+export interface TableRow {
+  position: number;
+  team: string;
+  crest?: string;
+  barca: boolean;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  points: number;
+  form: ('win' | 'draw' | 'loss')[];
+}
+
+export interface RankingRow {
+  playerId: string;
+  name: string;
+  team?: string;
+  barca: boolean;
+  value: string;
+  photo?: string;
+}
+
+export interface Ranking {
+  name: string; // e.g. "שערים"
+  rows: RankingRow[];
+}
+
+export interface CompetitionTables {
+  competition: string;
+  rows: TableRow[]; // empty for cups
+  barcaRankings: Ranking[];
+  allRankings: Ranking[];
+}
