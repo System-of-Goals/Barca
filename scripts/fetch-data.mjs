@@ -731,6 +731,7 @@ async function build() {
       console.warn(`careers: ${e.message}`);
     }
     await writeFile(`${OUT_DIR}/players.json`, JSON.stringify(squad));
+    console.log(`no career: ${squad.players.filter((p) => !p.career?.length).map((p) => `${p.number ?? '-'} ${p.fullName}`).join(' | ') || 'none'}`);
     console.log(`squad: ${squad.players.length} players, coach: ${squad.coach?.name ?? '-'}, sample: ${JSON.stringify(squad.players.find((p) => p.season))}`);
   } catch (e) {
     console.warn(`squad: ${e.message}`);
