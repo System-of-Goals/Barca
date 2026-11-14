@@ -29,6 +29,35 @@ const decode = (s = '') =>
     .trim();
 const tag = (xml, name) => xml.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)</${name}>`))?.[1];
 
+// Public Telegram channels have an open web preview (t.me/s/<channel>) with the latest posts.
+const TELEGRAM = ['barcamaniail'];
+async function readTelegram(channel) {
+  const r = await fetch(`https://t.me/s/${channel}`, { headers: UA });
+  if (!r.ok) throw new Error(`t.me/s/${channel}: HTTP ${r.status}`);
+  const html = await r.text();
+  const title = decode(html.match(/<meta property="og:title" content="([^"]*)"/)?.[1] ?? channel);
+  const posts = [];
+  for (const block of html.split('tgme_widget_message_wrap').slice(1)) {
+    const id = block.match(/data-post="([^"]+)"/)?.[1];
+    const body = block.match(/class="tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/)?.[1];
+    const time = block.match(/<time[^>]*datetime="([^"]+)"/)?.[1];
+    if (!id || !body || !time) continue;
+    const text = decode(body.replace(/<br\s*\/?>/gi, ' · '));
+    const link = [...body.matchAll(/href="(https?:\/\/[^"]+)"/g)].map((m) => decode(m[1])).find((u) => !/t\.me\//.test(u));
+    const first = text.split(/ · |(?<=[.!?])\s/)[0];
+    posts.push({
+      title: first.length > 140 ? `${first.slice(0, 137)}…` : first,
+      summary: text.slice(0, 1500),
+      url: `https://t.me/${id}`,
+      link,
+      publishedAt: new Date(time).toISOString(),
+      source: `טלגרם · ${title}`,
+      lang: 'he',
+    });
+  }
+  return posts;
+}
+
 async function readFeed(feed) {
   const r = await fetch(feed.url, { headers: UA });
   if (!r.ok) throw new Error(`${feed.url}: HTTP ${r.status}`);
@@ -56,7 +85,7 @@ async function readFeed(feed) {
 }
 
 // Same story on several sites: compare the words of the titles.
-const words = (t) => new Set(t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').match(/[a-z0-9]{4,}/g) ?? []);
+const words = (t) => new Set(t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').match(/[a-z0-9\u05d0-\u05ea]{4,}/g) ?? []);
 function similar(a, b) {
   const A = words(a);
   const B = words(b);
@@ -133,6 +162,7 @@ async function myMemory(text, lang) {
 }
 
 async function machineHebrew(item) {
+  if (item.lang === 'he') return { title: item.title, summary: item.summary.slice(0, 400), by: 'original' };
   return { title: await myMemory(item.title, item.lang), summary: await myMemory(item.summary, item.lang), by: 'machine' };
 }
 
@@ -199,14 +229,15 @@ ${list}`;
 // at most twice; when the article can't be read it keeps its short summary.
 async function deepen(stories) {
   if (!process.env.GEMINI_API_KEY) return;
-  const opens = (s) => [...(s.sources ?? []), { url: s.url }].some((x) => !/news\.google\.com/.test(x.url));
+  const readable = (u) => !/news\.google\.com|t\.me\//.test(u);
+  const opens = (s) => Boolean(s.articleUrl) || (s.postText?.length ?? 0) > 400 || [...(s.sources ?? []), { url: s.url }].some((x) => readable(x.url));
   const todo = stories.filter((s) => !s.detail && (s.detailTries ?? 0) < 2 && opens(s)).slice(0, 8);
   const ready = [];
   let blocked = 0;
   for (const st of todo) {
     st.detailTries = (st.detailTries ?? 0) + 1;
     // Prefer a direct link to the site over a Google News link.
-    const links = [...(st.sources ?? []), { url: st.url }].map((x) => x.url).sort((a, b) => /news\.google/.test(a) - /news\.google/.test(b));
+    const links = [st.articleUrl, ...(st.sources ?? []).map((x) => x.url), st.url].filter((u) => u && readable(u));
     let text = '';
     for (const url of [...new Set(links)]) {
       try {
@@ -216,6 +247,8 @@ async function deepen(stories) {
         text = '';
       }
     }
+    // A Telegram post is itself a source: add its text before the linked article.
+    if (st.postText) text = `הודעת הערוץ: ${st.postText}\n\n${text}`.trim();
     if (text.length > 400) ready.push({ st, original: st.original ?? st.title, text });
     else blocked++;
   }
@@ -265,6 +298,16 @@ export async function collectNews() {
     }
   }
 
+  for (const channel of TELEGRAM) {
+    try {
+      const posts = await readTelegram(channel);
+      console.log(`news telegram ${channel}: ${posts.length} posts, ${posts.filter((p) => p.link).length} with a link`);
+      fresh.push(...posts);
+    } catch (e) {
+      console.warn(`news telegram ${channel}: ${e.message}`);
+    }
+  }
+
   const cutoff = Date.now() - MAX_AGE_H * 3600 * 1000;
   const stories = [...previous.filter((p) => new Date(p.publishedAt).getTime() > cutoff && !otherSection(p.original ?? ''))];
   let fromMd = 0;
@@ -274,7 +317,7 @@ export async function collectNews() {
   fresh.sort((a, b) => direct(a) - direct(b));
   for (const it of fresh) {
     if (!it.title || isNaN(new Date(it.publishedAt)) || new Date(it.publishedAt).getTime() < cutoff) continue;
-    if (!aboutBarca(`${it.title} ${it.summary}`)) continue;
+    if (it.lang !== 'he' && !aboutBarca(`${it.title} ${it.summary}`)) continue;
     if (otherSection(`${it.title} ${it.summary}`)) continue;
     const same = stories.find((s) => similar(s.original, it.title)) ?? picked.find((p) => similar(p.it.title, it.title));
     if (same) {
@@ -335,6 +378,8 @@ export async function collectNews() {
       source: it.source,
       url: it.url,
       sources: [{ name: it.source, url: it.url }, ...extra],
+      ...(it.link ? { articleUrl: it.link } : {}),
+      ...(it.lang === 'he' ? { postText: it.summary } : {}),
     });
   }
   const translated = picked.length;

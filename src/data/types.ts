@@ -42,7 +42,7 @@ export interface NewsItem {
   summary?: string; // Hebrew
   original?: string; // the source's headline
   topic?: 'העברות' | 'פציעות' | 'משחקים' | 'מועדון';
-  translatedBy?: 'gemini' | 'machine';
+  translatedBy?: 'gemini' | 'machine' | 'original';
   // Extended summary (250–350 words) written from the full article.
   detail?: { short: string; points: string[]; quotes: { who?: string; text: string }[]; meaning: string };
   source: string;
