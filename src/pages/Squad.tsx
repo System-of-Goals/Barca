@@ -5,7 +5,7 @@ import type { CareerSpell, Player, Squad } from '../data/types';
 import { asset } from '../data/useSiteData';
 import { useJson } from '../data/useJson';
 import { formatDate } from '../lib/format';
-import { salaries } from '../data/budget';
+import { contractFor, contractSources } from '../data/contracts';
 import { Money } from './Budget';
 import { useSiteData } from '../data/useSiteData';
 
@@ -277,25 +277,40 @@ export function PlayerPage() {
       )}
 
       {tab === 'contract' && (() => {
-        const est = salaries.find((x) => x.match.test(p.name) || x.match.test(p.fullName));
+        const c = contractFor(p.number);
+        const rate = site?.eurIls;
         return (
-          <section className="card">
-            <h2 className="card-title">💶 שכר (הערכה, ברוטו לשנה)</h2>
-            {est ? (
-              <>
-                <div className="budget-row"><span>שכר שנתי</span><Money m={est.annual} rate={site?.eurIls} big /></div>
+          <>
+            <section className="card">
+              <h2 className="card-title">💶 שכר (הערכה, ברוטו)</h2>
+              {c ? (
+                <>
+                  <div className="budget-row"><span>שכר קבוע לשנה</span><Money m={c.fixed} rate={rate} big /></div>
+                  <div className="budget-row">
+                    <span>לשבוע</span>
+                    <span className="money"><b>€{c.weekly.toLocaleString('en-US')}</b>{rate && <span className="small"> · כ-₪{Math.round(c.weekly * rate).toLocaleString('en-US')}</span>}</span>
+                  </div>
+                  <div className="budget-row"><span>כולל בונוסים, לשנה</span><Money m={c.total} rate={rate} /></div>
+                  <div className="small">
+                    <a href={contractSources.salaries.url} target="_blank" rel="noreferrer" style={{ color: 'var(--gold)' }}>{contractSources.salaries.name} ↗</a> · עודכן {contractSources.updated}
+                  </div>
+                </>
+              ) : (
+                <div className="soon">לא נמצאה הערכת שכר לשחקן הזה</div>
+              )}
+            </section>
+            {c && (
+              <section className="card">
+                <h2 className="card-title">📈 שווי שוק</h2>
+                <div className="budget-row"><span>שווי מוערך</span><Money m={c.value} rate={rate} big /></div>
                 <div className="small">
-                  {est.range && <>טווח: €{est.range[0]}–{est.range[1]} מיליון · </>}
-                  {est.note && <>{est.note} · </>}
-                  <a href={est.source.url} target="_blank" rel="noreferrer" style={{ color: 'var(--gold)' }}>{est.source.name} ↗</a>
+                  <a href={contractSources.value.url} target="_blank" rel="noreferrer" style={{ color: 'var(--gold)' }}>{contractSources.value.name} ↗</a> · עודכן {contractSources.updated}
                 </div>
-              </>
-            ) : (
-              <div className="soon">לא נמצאה הערכת שכר לשחקן הזה</div>
+              </section>
             )}
-            <div className="small" style={{ marginTop: 10 }}>ברצלונה לא מפרסמת שכר שחקנים. תאריך סיום החוזה – יתווסף כשיימצא לו מקור.</div>
+            <div className="small" style={{ textAlign: 'center' }}>ברצלונה לא מפרסמת שכר שחקנים – אלה הערכות.</div>
             <Link to="/budget" className="more">לדף התקציב ›</Link>
-          </section>
+          </>
         );
       })()}
 

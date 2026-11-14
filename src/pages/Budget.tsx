@@ -1,3 +1,4 @@
+import { contracts, contractSources, payroll } from '../data/contracts';
 import { Link } from 'react-router-dom';
 import type { SiteData, Squad } from '../data/types';
 import { useJson } from '../data/useJson';
@@ -6,7 +7,6 @@ import {
   debt,
   lastAccounts,
   revenueBySeason,
-  salaries,
   salariesNote,
   salaryCap,
   type Source,
@@ -42,7 +42,7 @@ export function Budget({ data }: { data: SiteData }) {
   const squad = useJson<Squad>('players.json');
   const max = Math.max(...revenueBySeason.map((r) => r.revenue));
   const capUse = Math.round((salaryCap.wageBillEstimate / salaryCap.limit) * 100);
-  const rows = [...salaries].sort((a, b) => b.annual - a.annual);
+  const rows = [...contracts].sort((a, b) => b.fixed - a.fixed);
 
   return (
     <main className="page">
@@ -105,28 +105,28 @@ export function Budget({ data }: { data: SiteData }) {
 
       <section className="card">
         <h2 className="card-title">💶 שכר שחקנים (הערכה, ברוטו לשנה)</h2>
-        {rows.map((s) => {
-          const p = squad?.players.find((x) => s.match.test(x.name) || s.match.test(x.fullName));
+        <div className="budget-row"><span>כל הסגל – שכר קבוע</span><Money m={payroll.fixed} rate={rate} /></div>
+        <div className="budget-row"><span>כל הסגל – כולל בונוסים</span><Money m={payroll.total} rate={rate} /></div>
+        {rows.map((c) => {
+          const p = squad?.players.find((x) => x.number === c.number);
           const line = (
             <>
               <div className="budget-row">
-                <span className="spell-team">{s.name}</span>
-                <Money m={s.annual} rate={rate} />
+                <span className="spell-team">{c.name}</span>
+                <Money m={c.fixed} rate={rate} />
               </div>
-              <div className="small">
-                {s.range && <>טווח: €{s.range[0]}–{s.range[1]} מיליון · </>}
-                {s.note && <>{s.note} · </>}
-                <a href={s.source.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}>{s.source.name} ↗</a>
-              </div>
+              <div className="small">כולל בונוסים: €{c.total} מיליון · שווי שוק: €{c.value} מיליון</div>
             </>
           );
           return p ? (
-            <Link key={s.name} to={`/players/${p.id}`} className="salary-row">{line}</Link>
+            <Link key={c.number} to={`/players/${p.id}`} className="salary-row">{line}</Link>
           ) : (
-            <div key={s.name} className="salary-row">{line}</div>
+            <div key={c.number} className="salary-row">{line}</div>
           );
         })}
-        <div className="small" style={{ marginTop: 8 }}>{salariesNote}</div>
+        <div className="small" style={{ marginTop: 8 }}>
+          {salariesNote} מקורות: <a href={contractSources.salaries.url} target="_blank" rel="noreferrer">{contractSources.salaries.name} ↗</a> · <a href={contractSources.value.url} target="_blank" rel="noreferrer">{contractSources.value.name} ↗</a>
+        </div>
       </section>
 
       <section className="card soon">
