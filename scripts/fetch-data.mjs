@@ -281,7 +281,7 @@ async function competitionTables(id, name) {
 const SPARQL = 'https://query.wikidata.org/sparql';
 const WD_HEADERS = { 'user-agent': 'personal-fan-site-bot/1.0 (non-commercial; one query a day)', accept: 'application/sparql-results+json' };
 const CAREER_URL = 'https://system-of-goals.github.io/Barca/data/careers.json';
-const CAREER_VERSION = 2; // bump to refresh before the daily update
+const CAREER_VERSION = 3; // bump to refresh before the daily update
 
 async function sparql(query) {
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -367,6 +367,29 @@ async function careers(squad) {
     e.awards.push(award);
   }
 
+  // Every competition season Barcelona won: "winner = FC Barcelona" on a season item.
+  const won = await sparql(`SELECT ?compLabel ?start ?end ?time WHERE {
+  ?season wdt:P1346 wd:Q7156; wdt:P3450 ?comp.
+  OPTIONAL { ?season wdt:P580 ?start } OPTIONAL { ?season wdt:P582 ?end } OPTIONAL { ?season wdt:P585 ?time }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "he,en". }
+}`);
+  const barcaTitles = won
+    .map((b) => ({ competition: v(b, 'compLabel'), year: yearOf(v(b, 'end')) ?? yearOf(v(b, 'time')) ?? yearOf(v(b, 'start')) }))
+    .filter((t) => t.competition && t.year);
+  console.log(`barca titles on Wikidata: ${barcaTitles.length}`);
+
+  // A player shares a title if he was at Barcelona that year (by the years on Wikidata).
+  const titlesFor = (career) => {
+    const spells = career.filter((c) => !c.national && /^ברצלונה$|^FC Barcelona$/.test(c.team ?? ''));
+    const byComp = new Map();
+    for (const t of barcaTitles) {
+      if (!spells.some((c) => (c.from ?? 9999) <= t.year && t.year <= (c.to ?? 9999))) continue;
+      if (!byComp.has(t.competition)) byComp.set(t.competition, new Set());
+      byComp.get(t.competition).add(t.year);
+    }
+    return [...byComp].map(([competition, years]) => ({ competition, years: [...years].sort() })).sort((a, b) => b.years.length - a.years.length);
+  };
+
   const players = {};
   for (const p of squad) {
     const candidates = byBirth.get(p.birthdate?.slice(0, 10));
@@ -376,6 +399,7 @@ async function careers(squad) {
           wikipedia: e.wikipedia,
           career: e.career.sort((a, b) => (a.from ?? 0) - (b.from ?? 0)),
           awards: e.awards.sort((a, b) => (b.year ?? 0) - (a.year ?? 0)),
+          titles: titlesFor(e.career),
         }
       : null;
   }
@@ -383,6 +407,42 @@ async function careers(squad) {
   const withAwards = Object.values(players).filter((x) => x?.awards.length).length;
   console.log(`careers: found ${found}/${squad.length} players on Wikidata, ${withAwards} with awards`);
   return { version: CAREER_VERSION, updatedAt: new Date().toISOString(), players };
+}
+
+// ---------- Photos of the club legends (Wikimedia Commons, free licences) ----------
+// English Wikidata labels of the 20 legends, in the order of src/data/history.ts.
+const LEGENDS = [
+  'Paulino Alcántara', 'Josep Samitier', 'László Kubala', 'Luis Suárez Miramontes', 'Johan Cruyff',
+  'Carles Rexach', 'Diego Maradona', 'Ronald Koeman', 'Michael Laudrup', 'Hristo Stoichkov',
+  'Rivaldo', 'Ronaldinho', "Samuel Eto'o", 'Carles Puyol', 'Xavi',
+  'Andrés Iniesta', 'Lionel Messi', 'Gerard Piqué', 'Sergio Busquets', 'Luis Suárez',
+];
+const LIVE_IMG = 'https://system-of-goals.github.io/Barca/';
+
+async function legendPhotos() {
+  const values = LEGENDS.map((n) => `"${n.replace(/"/g, '\\"')}"@en`).join(' ');
+  const rows = await sparql(`SELECT ?name ?image WHERE {
+  VALUES ?name { ${values} }
+  ?p rdfs:label ?name; wdt:P54 wd:Q7156; wdt:P18 ?image.
+}`);
+  const out = {};
+  for (const [i, name] of LEGENDS.entries()) {
+    const image = rows.find((r) => v(r, 'name') === name)?.image?.value;
+    if (!image) continue;
+    const file = decodeURIComponent(image.split('/Special:FilePath/')[1] ?? '');
+    const path = `img/legend-${i}.jpg`;
+    // Reuse the copy already on our site; only go to Commons the first time.
+    let r = await fetch(LIVE_IMG + path).catch(() => undefined);
+    if (!r?.ok) {
+      r = await fetch(`https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=320`, { headers: WD_HEADERS }).catch(() => undefined);
+      await new Promise((ok) => setTimeout(ok, 1000));
+    }
+    if (!r?.ok) continue;
+    await writeFile(`public/${path}`, Buffer.from(await r.arrayBuffer()));
+    out[i] = { photo: path, credit: `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(file.replace(/ /g, '_'))}` };
+  }
+  console.log(`legend photos: ${Object.keys(out).length}/${LEGENDS.length}`);
+  return out;
 }
 
 // The squad, with each player's season (public/data/players.json).
@@ -502,6 +562,12 @@ async function build() {
     console.log(`squad: ${squad.players.length} players, coach: ${squad.coach?.name ?? '-'}, sample: ${JSON.stringify(squad.players.find((p) => p.season))}`);
   } catch (e) {
     console.warn(`squad: ${e.message}`);
+  }
+
+  try {
+    await writeFile(`${OUT_DIR}/legends.json`, JSON.stringify(await legendPhotos()));
+  } catch (e) {
+    console.warn(`legend photos: ${e.message}`);
   }
 
   const tables = [];

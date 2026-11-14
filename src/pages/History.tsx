@@ -1,4 +1,6 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useJson } from '../data/useJson';
+import { asset } from '../data/useSiteData';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   chapters,
@@ -19,6 +21,33 @@ import {
 const Paragraphs = ({ items }: { items: string[] }) => (
   <section className="card prose">{items.map((t, i) => <p key={i}>{t}</p>)}</section>
 );
+
+function Legends() {
+  const photos = useJson<Record<string, { photo: string; credit: string }>>('legends.json');
+  return (
+    <section className="card">
+      {legends.map((l, i) => {
+        const ph = photos?.[i];
+        return (
+          <div key={l.name} className="legend-row">
+            {ph ? (
+              <a href={ph.credit} target="_blank" rel="noreferrer" className="legend-photo" title="תמונה: ויקישיתוף">
+                <img src={asset(ph.photo)} alt={l.name} loading="lazy" />
+              </a>
+            ) : (
+              <span className="legend-num">{i + 1}</span>
+            )}
+            <div>
+              <div className="spell-team">{l.name} <span className="small">· {l.years}</span></div>
+              <div className="history-text">{l.text}</div>
+            </div>
+          </div>
+        );
+      })}
+      <div className="small" style={{ marginTop: 8 }}>תמונות: ויקישיתוף (Wikimedia Commons). לחיצה על תמונה מציגה את פרטי הזכויות.</div>
+    </section>
+  );
+}
 
 function ChapterBody({ id }: { id: string }) {
   switch (id) {
@@ -70,19 +99,7 @@ function ChapterBody({ id }: { id: string }) {
         </>
       );
     case 'legends':
-      return (
-        <section className="card">
-          {legends.map((l, i) => (
-            <div key={l.name} className="legend-row">
-              <span className="legend-num">{i + 1}</span>
-              <div>
-                <div className="spell-team">{l.name} <span className="small">· {l.years}</span></div>
-                <div className="history-text">{l.text}</div>
-              </div>
-            </div>
-          ))}
-        </section>
-      );
+      return <Legends />;
     case 'coaches':
       return (
         <section className="card">

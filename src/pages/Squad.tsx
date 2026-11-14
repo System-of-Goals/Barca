@@ -211,20 +211,38 @@ export function PlayerPage() {
       )}
 
       {tab === 'titles' && (
-        <section className="card">
-          <h2 className="card-title">🏆 פרסים והישגים אישיים</h2>
-          {p.awards?.length ? (
-            p.awards.map((a, i) => (
-              <div key={i} className="stand-row">
-                <span className="stand-comp">{a.name}</span>
-                {a.year && <span className="gold">{a.year}</span>}
-              </div>
-            ))
-          ) : (
-            <div className="soon">לא נמצאו פרסים אישיים בוויקיפדיה</div>
-          )}
-          <div className="small" style={{ marginTop: 10 }}>תארים קבוצתיים (אליפויות וגביעים) יתווספו בהמשך.</div>
-        </section>
+        <>
+          <section className="card">
+            <h2 className="card-title">🏆 תארים עם ברצלונה</h2>
+            {p.titles?.length ? (
+              p.titles.map((t) => (
+                <div key={t.competition} className="title-row">
+                  <span className="title-count">{t.years.length}</span>
+                  <div>
+                    <div className="spell-team">{t.competition}</div>
+                    <div className="small">{t.years.join(' · ')}</div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="soon">עוד לא זכה בתארים עם ברצלונה</div>
+            )}
+            <div className="small" style={{ marginTop: 10 }}>לפי התארים של ברצלונה והשנים שבהן השחקן היה במועדון (מוויקיפדיה). ייתכנו פערים קטנים.</div>
+          </section>
+          <section className="card">
+            <h2 className="card-title">⭐ פרסים אישיים</h2>
+            {p.awards?.length ? (
+              p.awards.map((a, i) => (
+                <div key={i} className="stand-row">
+                  <span className="stand-comp">{a.name}</span>
+                  {a.year && <span className="gold">{a.year}</span>}
+                </div>
+              ))
+            ) : (
+              <div className="soon">לא נמצאו פרסים אישיים בוויקיפדיה</div>
+            )}
+          </section>
+        </>
       )}
 
       {tab === 'contract' && <section className="card soon">החוזה והשכר (הערכה) יתווספו עם דף התקציב.</section>}

@@ -172,6 +172,7 @@ export interface Player {
   // From Wikidata
   career?: CareerSpell[];
   awards?: { name?: string; year?: number }[];
+  titles?: { competition: string; years: number[] }[]; // won with Barcelona
   wikipedia?: string;
 }
 
