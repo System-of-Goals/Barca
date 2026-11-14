@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight, ExternalLink } from 'lucide-react';
 import type { NewsItem } from '../data/types';
 import { useJson } from '../data/useJson';
+import { useLiveNews } from '../data/liveNews';
 
 const CHANNEL_URL = 'https://t.me/barcamaniail';
 
@@ -40,7 +41,7 @@ function ChannelHeader({ name }: { name?: string }) {
 }
 
 export function News() {
-  const news = useJson<NewsItem[]>('news.json');
+  const news = useLiveNews(useJson<NewsItem[]>('news.json'));
   const [shown, setShown] = useState(15);
   if (news === undefined) return <main className="page"><h1 className="page-title">חדשות</h1><div className="soon">טוען…</div></main>;
   const list = news ?? [];
@@ -60,7 +61,8 @@ export function NewsArticle() {
   const navigate = useNavigate();
   const news = useJson<NewsItem[]>('news.json');
   if (news === undefined) return <main className="page"><div className="soon">טוען…</div></main>;
-  const n = news?.find((x) => x.id === id);
+  // A post newer than the robot's list (found live) still opens: the widget only needs its number.
+  const n = news?.find((x) => x.id === id) ?? (id && /^\d+$/.test(id) ? ({ id, post: `barcamaniail/${id}` } as NewsItem) : undefined);
   return (
     <main className="page">
       <button className="back" onClick={() => (history.length > 1 ? navigate(-1) : navigate('/news'))}>

@@ -5,6 +5,7 @@ import type { Leader, Match, SiteData } from '../data/types';
 import { asset } from '../data/useSiteData';
 import { todayInHistory } from '../data/history';
 import { Header } from '../components/Header';
+import { useLiveNews } from '../data/liveNews';
 import {
   formatDate,
   formatTime,
@@ -136,6 +137,7 @@ function LeaderCard({ leader, title, unit, icon }: { leader: Leader; title: stri
 }
 
 export function Home({ data }: { data: SiteData }) {
+  const homeNews = (useLiveNews(data.news) ?? []).filter((n) => n.hasText ?? Boolean(n.text)).slice(0, 3);
   const sorted = [...data.matches].sort(byKickoff);
   const next = sorted.find((m) => m.status !== 'finished');
   const played = sorted.filter((m) => m.status === 'finished').reverse();
@@ -182,10 +184,10 @@ export function Home({ data }: { data: SiteData }) {
           ) : null;
         })()}
 
-        {data.news.length > 0 && (
+        {homeNews.length > 0 && (
         <section className="card">
           <h2 className="card-title"><Newspaper size={18} /> חדשות אחרונות</h2>
-          {data.news.slice(0, 3).map((n) => (
+          {homeNews.map((n) => (
             <Link key={n.id} to={`/news/${n.id}`} className="news-item">
               <div className="news-thumb">{n.image && <img src={n.image} alt="" loading="lazy" referrerPolicy="no-referrer" />}</div>
               <div>
