@@ -74,7 +74,8 @@ const aboutBarca = (t) => /bar[cç]a|barcelona|blaugrana|azulgrana|culé|cule|fl
 async function geminiHebrew(item) {
   const key = process.env.GEMINI_API_KEY;
   const prompt = `סכם את הידיעה הבאה על ברצלונה בעברית טבעית, במילים שלך (לא תרגום מילולי).
-החזר JSON בלבד: {"title": "כותרת בעברית עד 12 מילים", "summary": "2-3 משפטים בעברית"}.
+החזר JSON בלבד: {"title": "כותרת בעברית עד 12 מילים", "summary": "2-3 משפטים בעברית", "topic": "העברות" | "פציעות" | "משחקים" | "מועדון"}.
+topic: העברות = רכישות, מכירות, השאלות, חוזים; פציעות = פציעות והיעדרויות; משחקים = משחק מסוים, תוצאה, הרכב; מועדון = כל השאר.
 כותרת: ${item.title}
 תקציר: ${item.summary || '(אין)'}`;
   const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${key}`, {
@@ -84,7 +85,7 @@ async function geminiHebrew(item) {
   });
   if (!r.ok) throw new Error(`gemini HTTP ${r.status}`);
   const out = JSON.parse((await r.json()).candidates[0].content.parts[0].text);
-  return { title: out.title, summary: out.summary, by: 'gemini' };
+  return { title: out.title, summary: out.summary, topic: ['העברות', 'פציעות', 'משחקים', 'מועדון'].includes(out.topic) ? out.topic : undefined, by: 'gemini' };
 }
 
 async function myMemory(text, lang) {
@@ -157,7 +158,8 @@ export async function collectNews() {
         summary: he.summary,
         translatedBy: he.by,
         original: it.title,
-        topic: topicOf(`${it.title} ${it.summary}`),
+        topic: he.topic ?? topicOf(`${it.title} ${it.summary}`),
+        topicBy: he.topic ? 'gemini' : 'words',
         publishedAt: it.publishedAt,
         source: it.source,
         url: it.url,
@@ -168,7 +170,7 @@ export async function collectNews() {
       console.warn(`news translate: ${e.message}`);
     }
   }
-  for (const st of stories) st.topic = topicOf(st.original ?? '');
+  for (const st of stories) if (st.topicBy !== 'gemini') st.topic = topicOf(st.original ?? '');
   stories.sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
   console.log(`news: ${stories.length} stories (${translated} new, translation: ${process.env.GEMINI_API_KEY ? 'gemini' : 'machine'})`);
   return stories.slice(0, KEEP);
