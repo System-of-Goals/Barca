@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { CalendarDays, Crown, Target, Newspaper, Trophy, User } from 'lucide-react';
 import type { Leader, Match, SiteData } from '../data/types';
 import { asset } from '../data/useSiteData';
+import { todayInHistory } from '../data/history';
 import { Header } from '../components/Header';
 import {
   formatDate,
@@ -166,12 +167,15 @@ export function Home({ data }: { data: SiteData }) {
           </div>
         )}
 
-        {data.todayInHistory && (
-          <Link to="/history" className="card card-link">
-            <h2 className="card-title"><CalendarDays size={18} /> היום בהיסטוריה</h2>
-            <div><span className="gold">{data.todayInHistory.year}</span> · {data.todayInHistory.text}</div>
-          </Link>
-        )}
+        {(() => {
+          const h = todayInHistory();
+          return h ? (
+            <Link to="/history" className="card card-link">
+              <h2 className="card-title"><CalendarDays size={18} /> {h.today ? 'היום בהיסטוריה' : 'בקרוב בהיסטוריה'}</h2>
+              <div><span className="gold">{h.date}/{h.year}</span> · {h.text}</div>
+            </Link>
+          ) : null;
+        })()}
 
         {data.news.length > 0 && (
         <section className="card">

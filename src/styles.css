@@ -367,3 +367,21 @@ button { font: inherit; color: inherit; }
 .spell-dot.now { background: var(--gold); box-shadow: 0 0 0 3px rgba(237, 187, 0, 0.25); }
 .spell-main { flex: 1; }
 .spell-team { font-weight: 800; }
+
+/* History */
+.chapter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.chapter-card { display: flex; flex-direction: column; gap: 4px; padding: 14px 12px; border-radius: var(--radius); border: 1px solid var(--line); background: linear-gradient(160deg, rgba(0, 77, 152, 0.55), rgba(165, 0, 68, 0.55)), var(--card); min-height: 112px; }
+.chapter-icon { font-size: 26px; }
+.chapter-title { font-weight: 900; font-size: 18px; color: var(--gold); }
+.prose p { margin: 0 0 12px; line-height: 1.65; font-size: 16px; }
+.prose p:last-child { margin-bottom: 0; }
+.history-text { line-height: 1.55; font-size: 15px; margin-top: 2px; }
+.timeline.big .spell { padding: 10px 0; }
+.title-row { display: flex; align-items: center; gap: 14px; padding: 8px 0; }
+.title-row + .title-row { border-top: 1px solid var(--line); }
+.title-count { min-width: 52px; text-align: center; font-size: 34px; font-weight: 900; color: var(--gold); line-height: 1; }
+.legend-row { display: flex; gap: 12px; padding: 10px 0; }
+.legend-row + .legend-row { border-top: 1px solid var(--line); }
+.legend-num { min-width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--gold); color: var(--night); font-weight: 900; font-size: 13px; flex-shrink: 0; }
+.next-chapter { display: flex; align-items: center; gap: 10px; }
+.next-chapter .spell-team { flex: 1; }
