@@ -11,7 +11,6 @@ const KEEP = 60;
 const FEEDS = [
   { name: 'Mundo Deportivo', lang: 'es', url: 'https://www.mundodeportivo.com/rss/futbol/fc-barcelona.xml' },
   // Direct feeds: their links open the article itself, so it can get an extended summary.
-  { name: 'SPORT', lang: 'es', url: 'https://www.sport.es/es/rss/barca/rss.xml' },
   { name: 'MARCA', lang: 'es', url: 'https://e00-marca.uecdn.es/rss/futbol/barcelona.xml' },
   { name: 'Google News', lang: 'es', url: 'https://news.google.com/rss/search?q=%22FC+Barcelona%22+OR+Bar%C3%A7a+when:2d&hl=es&gl=ES&ceid=ES:es' },
   { name: 'Google News', lang: 'en', url: 'https://news.google.com/rss/search?q=%22FC+Barcelona%22+when:2d&hl=en-GB&gl=GB&ceid=GB:en' },
@@ -136,7 +135,8 @@ async function machineHebrew(item) {
 }
 
 // ---------- extended summaries (250–350 words) from the full article ----------
-const BROWSER = { 'user-agent': 'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Mobile Safari/537.36', 'accept-language': 'es,en;q=0.8' };
+// The robot says honestly that it is a bot. A site that refuses bots keeps the short summary.
+const BROWSER = { ...UA, 'accept-language': 'es,en;q=0.8' };
 
 // Downloads an article and keeps only its paragraphs. Returns '' when the site blocks us,
 // the article is behind a paywall, or the link stays on Google News.
