@@ -14,9 +14,6 @@ const FEEDS = [
   { name: 'MARCA', lang: 'es', url: 'https://e00-marca.uecdn.es/rss/futbol/barcelona.xml' },
   // Sites that often appear through Google News; their own feeds link straight to the article.
   { name: 'Crónica Global', lang: 'es', url: 'https://cronicaglobal.elespanol.com/rss/' },
-  { name: 'El Nacional', lang: 'es', url: 'https://www.elnacional.cat/es/barca/rss.xml' },
-  { name: 'AS', lang: 'es', url: 'https://as.com/rss/tags/fc_barcelona.xml' },
-  { name: 'ESPN', lang: 'en', url: 'https://www.espn.com/espn/rss/soccer/news' },
   { name: 'Google News', lang: 'es', url: 'https://news.google.com/rss/search?q=%22FC+Barcelona%22+OR+Bar%C3%A7a+when:2d&hl=es&gl=ES&ceid=ES:es' },
   { name: 'Google News', lang: 'en', url: 'https://news.google.com/rss/search?q=%22FC+Barcelona%22+when:2d&hl=en-GB&gl=GB&ceid=GB:en' },
 ];
