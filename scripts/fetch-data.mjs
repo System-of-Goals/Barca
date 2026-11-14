@@ -496,6 +496,11 @@ async function legendPhotos() {
 // The squad, with each player's season (public/data/players.json).
 async function squadFile() {
   const res = await api(`squads/?competitors=${BARCA}`);
+  const athleteKeys = new Set((res.squads?.[0]?.athletes ?? []).flatMap((a) => Object.keys(a)));
+  console.log(`DEBUG squad athlete keys: ${[...athleteKeys].join(',')}`);
+  for (const a of (res.squads?.[0]?.athletes ?? []).filter((x) => x.injury || x.suspension || x.status || x.isInjured || x.isSuspended).slice(0, 3)) {
+    console.log(`DEBUG athlete with status: ${JSON.stringify(a).slice(0, 500)}`);
+  }
   const countries = new Map((res.countries ?? []).map((c) => [c.id, c.name]));
   const finish = (t) => {
     const { ratingSum, ratings, ...rest } = t;
@@ -554,6 +559,19 @@ async function build() {
     try {
       const detail = await api(`game/?gameId=${next.id}`);
       if (detail.game?.venue?.name) next.venue = detail.game.venue.name;
+      // Temporary: find where 365Scores keeps injured / suspended players.
+      const g = detail.game ?? {};
+      const us = g.homeCompetitor?.id === BARCA ? g.homeCompetitor : g.awayCompetitor;
+      console.log(`DEBUG next game keys: ${Object.keys(g).join(',')}`);
+      console.log(`DEBUG our competitor keys: ${Object.keys(us ?? {}).join(',')}`);
+      const find = (o, path = '') => {
+        if (!o || typeof o !== 'object') return;
+        for (const [k, v] of Object.entries(o)) {
+          if (/miss|injur|suspen|absen|doubt|unavail/i.test(k)) console.log(`DEBUG ${path}${k}: ${JSON.stringify(v).slice(0, 700)}`);
+          if (typeof v === 'object' && path.split('.').length < 5) find(v, `${path}${k}.`);
+        }
+      };
+      find(g);
     } catch (e) {
       console.warn(`venue: ${e.message}`);
     }
