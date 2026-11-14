@@ -488,6 +488,8 @@
 - צבעים: כחול `#004D98` · בורדו `#A50044` · זהב `#EDBB00` · כחול לילה `#0A1128` · לבן.
 - סבב 1: 3 הצעות לדף הבית (א / ב / ג) – ✅ נבחר הסגנון של [`design/home.png`](design/home.png).
 
+- סבב 2: דף משחק ([Canva](https://canva.link/5rcz7f2rw0keamh)) ודף שחקן ([Canva](https://canva.link/pzdccxuj8hmpsk8)) באותו סגנון – ⏳.
+
 ### הסגנון שנבחר ✅
 ![דף הבית](design/home.png)
 
