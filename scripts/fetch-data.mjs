@@ -281,7 +281,7 @@ async function competitionTables(id, name) {
 const SPARQL = 'https://query.wikidata.org/sparql';
 const WD_HEADERS = { 'user-agent': 'personal-fan-site-bot/1.0 (non-commercial; one query a day)', accept: 'application/sparql-results+json' };
 const CAREER_URL = 'https://system-of-goals.github.io/Barca/data/careers.json';
-const CAREER_VERSION = 5; // bump to refresh before the daily update
+const CAREER_VERSION = 6; // bump to refresh before the daily update
 
 async function sparql(query) {
   for (let attempt = 0; attempt < 3; attempt++) {
@@ -372,7 +372,9 @@ async function careers(squad) {
   const won = await sparql(`SELECT DISTINCT ?compLabel ?start ?end ?time WHERE {
   ?item wdt:P1346 wd:Q7156.
   OPTIONAL { ?item wdt:P3450 ?c1 }
+  # Only a final counts as winning the edition it belongs to – not any match Barcelona won.
   OPTIONAL { ?item wdt:P361 ?edition. ?edition wdt:P3450 ?c2.
+             ?item rdfs:label ?en. FILTER(LANG(?en) = "en" && REGEX(?en, "(^|[^-])[Ff]inal") && !REGEX(?en, "[Ss]emi|[Qq]uarter"))
              OPTIONAL { ?edition wdt:P580 ?es } OPTIONAL { ?edition wdt:P582 ?ee } }
   BIND(COALESCE(?c1, ?c2) AS ?comp)
   FILTER(BOUND(?comp))
@@ -399,7 +401,9 @@ async function careers(squad) {
   };
 
   const seen = new Set();
-  const barcaTitles = [];
+  // Titles missing on Wikidata, added by hand (checked): Super Cup final, 12 January 2025, 5–2 v Real Madrid.
+  const barcaTitles = [{ competition: 'הסופר קאפ הספרדי', label: '2024/25', endYear: 2025 }];
+  seen.add('הסופר קאפ הספרדי|2024/25');
   for (const b of won) {
     const competition = v(b, 'compLabel');
     const season = seasonOf(v(b, 'start'), v(b, 'end'), v(b, 'time'));
