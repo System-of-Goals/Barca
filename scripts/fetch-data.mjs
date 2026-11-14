@@ -624,9 +624,20 @@ async function build() {
   await writeFile(`${OUT_DIR}/tables.json`, JSON.stringify(tables));
   console.log(`tables: ${tables.map((t) => `${t.competition} rows=${t.rows.length} rankings=${t.barcaRankings.map((r) => r.name).join('/')} | all=${t.allRankings.map((r) => r.name).join('/')}`).join(' ; ')}`);
 
+  // Euro → shekel rate for the budget page (free, no key).
+  let eurIls;
+  try {
+    const fx = await fetch('https://open.er-api.com/v6/latest/EUR').then((r) => r.json());
+    eurIls = fx?.rates?.ILS;
+    console.log(`EUR→ILS: ${eurIls}`);
+  } catch (e) {
+    console.warn(`exchange rate: ${e.message}`);
+  }
+
   return {
     isSample: false,
     updatedAt: new Date().toISOString(),
+    eurIls,
     crest,
     matches,
     standings,

@@ -54,6 +54,7 @@ export interface SiteData {
   isSample: boolean;
   updatedAt: string; // ISO
   crest?: string; // club crest, relative to the site root
+  eurIls?: number; // today's euro → shekel rate
   matches: Match[]; // the whole season, any order
   standings: StandingSummary[];
   topScorer?: Leader;

@@ -4,6 +4,9 @@ import { ChevronRight, Star, User } from 'lucide-react';
 import type { CareerSpell, Player, Squad } from '../data/types';
 import { asset } from '../data/useSiteData';
 import { useJson } from '../data/useJson';
+import { salaries } from '../data/budget';
+import { Money } from './Budget';
+import { useSiteData } from '../data/useSiteData';
 
 const GROUPS = [
   { key: 'שוער', title: '🧤 שוערים' },
@@ -119,6 +122,7 @@ export function PlayerPage() {
   const navigate = useNavigate();
   const squad = useJson<Squad>('players.json');
   const [tab, setTab] = useState<'season' | 'career' | 'titles' | 'contract'>('season');
+  const site = useSiteData();
 
   if (squad === undefined) return <main className="page"><div className="soon">טוען…</div></main>;
   const p = squad?.players.find((x) => x.id === id) ?? (squad?.coach?.id === id ? squad?.coach : undefined);
@@ -245,7 +249,28 @@ export function PlayerPage() {
         </>
       )}
 
-      {tab === 'contract' && <section className="card soon">החוזה והשכר (הערכה) יתווספו עם דף התקציב.</section>}
+      {tab === 'contract' && (() => {
+        const est = salaries.find((x) => x.match.test(p.name) || x.match.test(p.fullName));
+        return (
+          <section className="card">
+            <h2 className="card-title">💶 שכר (הערכה, ברוטו לשנה)</h2>
+            {est ? (
+              <>
+                <div className="budget-row"><span>שכר שנתי</span><Money m={est.annual} rate={site?.eurIls} big /></div>
+                <div className="small">
+                  {est.range && <>טווח: €{est.range[0]}–{est.range[1]} מיליון · </>}
+                  {est.note && <>{est.note} · </>}
+                  <a href={est.source.url} target="_blank" rel="noreferrer" style={{ color: 'var(--gold)' }}>{est.source.name} ↗</a>
+                </div>
+              </>
+            ) : (
+              <div className="soon">לא נמצאה הערכת שכר לשחקן הזה</div>
+            )}
+            <div className="small" style={{ marginTop: 10 }}>ברצלונה לא מפרסמת שכר שחקנים. תאריך סיום החוזה – יתווסף כשיימצא לו מקור.</div>
+            <Link to="/budget" className="more">לדף התקציב ›</Link>
+          </section>
+        );
+      })()}
 
       {p.wikipedia && (
         <a className="more" href={p.wikipedia} target="_blank" rel="noreferrer" style={{ textAlign: 'center' }}>לערך בוויקיפדיה ↗</a>

@@ -387,3 +387,19 @@ button { font: inherit; color: inherit; }
 .next-chapter .spell-team { flex: 1; }
 .legend-photo { width: 56px; height: 56px; border-radius: 50%; overflow: hidden; flex-shrink: 0; border: 2px solid var(--gold); background: var(--card-2); }
 .legend-photo img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+
+/* Budget */
+.budget-row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 8px 0 2px; flex-wrap: wrap; }
+.money b { color: var(--gold); font-size: 17px; }
+.money-big { font-size: 24px !important; }
+.sources { margin-top: 10px; }
+.sources a, .salary-row a { color: var(--gold); }
+.bars { display: flex; align-items: flex-end; justify-content: space-around; gap: 10px; height: 190px; padding-top: 10px; }
+.bar-col { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+.bar { width: 100%; max-width: 56px; border-radius: 8px 8px 0 0; background: linear-gradient(180deg, var(--gold), #b58f00); }
+.bar.budget { background: repeating-linear-gradient(45deg, rgba(237, 187, 0, 0.5) 0 6px, rgba(237, 187, 0, 0.25) 6px 12px); border: 1px dashed var(--gold); }
+.bar-value { font-weight: 800; font-size: 13px; }
+.cap-bar { height: 10px; border-radius: 5px; background: #4b5563; overflow: hidden; margin: 8px 0 4px; }
+.cap-bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--blue), var(--garnet)); }
+.salary-row { display: block; padding: 8px 0; }
+.salary-row + .salary-row { border-top: 1px solid var(--line); }
