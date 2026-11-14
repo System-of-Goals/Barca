@@ -410,3 +410,5 @@ button { font: inherit; color: inherit; }
 .story.open .story-title { color: var(--gold); }
 .story-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .story-links .chip { display: inline-flex; align-items: center; gap: 4px; }
+.player-flag { position: absolute; top: 6px; left: 8px; font-size: 16px; }
+.unavailable { display: inline-block; margin-top: 8px; padding: 4px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); }

@@ -4,6 +4,7 @@ import { ChevronRight, Star, User } from 'lucide-react';
 import type { CareerSpell, Player, Squad } from '../data/types';
 import { asset } from '../data/useSiteData';
 import { useJson } from '../data/useJson';
+import { formatDate } from '../lib/format';
 import { salaries } from '../data/budget';
 import { Money } from './Budget';
 import { useSiteData } from '../data/useSiteData';
@@ -41,6 +42,25 @@ export function SquadPage() {
         ))}
       </div>
 
+      {filter === 'הכול' && squad.players.some((p) => p.unavailable) && (
+        <section className="card">
+          <h2 className="card-title">🚑 לא זמינים</h2>
+          {squad.players.filter((p) => p.unavailable).map((p) => (
+            <Link key={p.id} to={`/players/${p.id}`} className="stand-row">
+              <span>{p.unavailable!.kind === 'injury' ? '🩹' : '🟥'}</span>
+              <span className="stand-comp">{p.name} <span className="small">· {p.unavailable!.reason ?? (p.unavailable!.kind === 'injury' ? 'פציעה' : 'השעיה')}</span></span>
+              {p.unavailable!.expectedReturn && <span className="small">חזרה: {p.unavailable!.expectedReturn}</span>}
+            </Link>
+          ))}
+          {squad.unavailableSource && (
+            <div className="small" style={{ marginTop: 8 }}>
+              לפי {squad.unavailableSource.upcoming ? 'רשימת החסרים למשחק הקרוב' : 'המשחק האחרון'}
+              {squad.unavailableSource.opponent ? ` מול ${squad.unavailableSource.opponent}` : ''} ({formatDate(squad.unavailableSource.date)}) · 365Scores
+            </div>
+          )}
+        </section>
+      )}
+
       {squad.coach && filter === 'הכול' && (
         <section className="card coach">
           <Photo p={squad.coach} className="coach-photo" />
@@ -63,6 +83,7 @@ export function SquadPage() {
                 <Link key={p.id} to={`/players/${p.id}`} className="player-card">
                   <Photo p={p} className="player-photo" />
                   <span className="player-num">{p.number ?? ''}</span>
+                  {p.unavailable && <span className="player-flag" title={p.unavailable.reason}>{p.unavailable.kind === 'injury' ? '🩹' : '🟥'}</span>}
                   <span className="player-name">{p.name}</span>
                   {p.season && p.season.apps > 0 && (
                     <span className="small">{p.season.apps} מש׳ · {p.season.goals} ש׳</span>
@@ -151,6 +172,12 @@ export function PlayerPage() {
           <h1>{p.fullName}</h1>
           <div>{[p.detailedPosition ?? p.position, p.age ? `גיל ${p.age}` : '', p.nationality].filter(Boolean).join(' · ')}</div>
           {p.height ? <div className="small" style={{ color: '#fff', opacity: 0.8 }}>גובה {p.height} ס״מ</div> : null}
+          {p.unavailable && (
+            <div className={`unavailable ${p.unavailable.kind}`}>
+              {p.unavailable.kind === 'injury' ? '🩹' : '🟥'} {p.unavailable.reason ?? (p.unavailable.kind === 'injury' ? 'פצוע' : 'מושעה')}
+              {p.unavailable.expectedReturn && <> · צפוי לחזור: {p.unavailable.expectedReturn}</>}
+            </div>
+          )}
         </div>
       </section>
 

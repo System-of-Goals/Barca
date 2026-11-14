@@ -62,6 +62,35 @@ function seasonStart(now = new Date()) {
 
 const STATUS = { 2: 'scheduled', 3: 'live', 4: 'finished' };
 
+// Injured / suspended players: 365Scores lists them in a match's lineup with status 3 ("Missing").
+const unavailableFrom = { next: undefined, last: undefined };
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const MONTHS_HE = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
+function returnInHebrew(text) {
+  if (!text) return undefined;
+  const m = text.match(/^(Early|Mid|Late)?\s*([A-Za-z]+)\s+(\d{4})$/);
+  if (!m || !MONTHS.includes(m[2])) return text;
+  const part = { Early: 'תחילת ', Mid: 'אמצע ', Late: 'סוף ' }[m[1]] ?? '';
+  return `${part}${MONTHS_HE[MONTHS.indexOf(m[2])]} ${m[3]}`;
+}
+function missingPlayers(game) {
+  if (!game) return [];
+  const us = game.homeCompetitor?.id === BARCA ? game.homeCompetitor : game.awayCompetitor;
+  const people = new Map((game.members ?? []).map((m) => [m.id, m]));
+  return (us?.lineups?.members ?? [])
+    .filter((m) => m.status === 3)
+    .map((m) => {
+      const reason = m.injury?.reason ?? m.suspension?.reason ?? m.reason;
+      const suspended = Boolean(m.suspension) || /השעי|כרטיס|הרחק/.test(reason ?? '') || (m.injury?.categoryId ?? 1) !== 1;
+      return {
+        playerId: String(people.get(m.id)?.athleteId ?? m.id),
+        kind: suspended ? 'suspension' : 'injury',
+        reason,
+        expectedReturn: returnInHebrew(m.injury?.expectedReturn),
+      };
+    });
+}
+
 function splitCompetition(name = '') {
   const i = name.indexOf(' - ');
   return i < 0 ? [name, ''] : [name.slice(0, i), name.slice(i + 3)];
@@ -130,16 +159,9 @@ async function matchDetail(gameId, competition, finished) {
     api(`game/?gameId=${gameId}`),
     api(`game/stats/?games=${gameId}`).catch(() => ({})),
   ]);
+  if (finished && (!unavailableFrom.last || g.startTime > unavailableFrom.last.startTime)) unavailableFrom.last = g;
   const barcaHome = g.homeCompetitor.id === BARCA;
-  if (gameId === globalThis.DEBUG_GAME) {
-    const c = barcaHome ? g.homeCompetitor : g.awayCompetitor;
-    const statuses = {};
-    for (const m of c.lineups?.members ?? []) statuses[`${m.status}:${m.statusText}`] = (statuses[`${m.status}:${m.statusText}`] ?? 0) + 1;
-    console.log(`DEBUG played game ${gameId} lineup statuses: ${JSON.stringify(statuses)}`);
-    const odd = (c.lineups?.members ?? []).filter((m) => m.status > 2).slice(0, 3);
-    for (const m of odd) console.log(`DEBUG missing member: ${JSON.stringify(m).slice(0, 600)}`);
-    console.log(`DEBUG lineups keys: ${Object.keys(c.lineups ?? {}).join(',')}`);
-  }
+
   const usC = barcaHome ? g.homeCompetitor : g.awayCompetitor;
   const themC = barcaHome ? g.awayCompetitor : g.homeCompetitor;
   const people = new Map((g.members ?? []).map((m) => [m.id, m]));
@@ -505,11 +527,6 @@ async function legendPhotos() {
 // The squad, with each player's season (public/data/players.json).
 async function squadFile() {
   const res = await api(`squads/?competitors=${BARCA}`);
-  const athleteKeys = new Set((res.squads?.[0]?.athletes ?? []).flatMap((a) => Object.keys(a)));
-  console.log(`DEBUG squad athlete keys: ${[...athleteKeys].join(',')}`);
-  for (const a of (res.squads?.[0]?.athletes ?? []).filter((x) => x.injury || x.suspension || x.status || x.isInjured || x.isSuspended).slice(0, 3)) {
-    console.log(`DEBUG athlete with status: ${JSON.stringify(a).slice(0, 500)}`);
-  }
   const countries = new Map((res.countries ?? []).map((c) => [c.id, c.name]));
   const finish = (t) => {
     const { ratingSum, ratings, ...rest } = t;
@@ -544,7 +561,18 @@ async function squadFile() {
     });
   }
   players.sort((x, y) => x.positionOrder - y.positionOrder || (x.number ?? 99) - (y.number ?? 99));
-  return { coach, players };
+
+  const nextList = missingPlayers(unavailableFrom.next);
+  const fromGame = nextList.length ? unavailableFrom.next : unavailableFrom.last;
+  const missing = nextList.length ? nextList : missingPlayers(unavailableFrom.last);
+  for (const m of missing) {
+    const p = players.find((x) => x.id === m.playerId);
+    if (p) p.unavailable = { kind: m.kind, reason: m.reason, expectedReturn: m.expectedReturn };
+  }
+  const opp = fromGame && (fromGame.homeCompetitor.id === BARCA ? fromGame.awayCompetitor : fromGame.homeCompetitor);
+  const unavailableSource = fromGame ? { opponent: opp?.name, date: new Date(fromGame.startTime).toISOString(), upcoming: Boolean(nextList.length) } : undefined;
+  console.log(`unavailable: ${missing.length} players (from the ${nextList.length ? 'next' : 'last'} match${opp ? ` v ${opp.name}` : ''})`);
+  return { coach, players, unavailableSource };
 }
 
 async function build() {
@@ -568,19 +596,7 @@ async function build() {
     try {
       const detail = await api(`game/?gameId=${next.id}`);
       if (detail.game?.venue?.name) next.venue = detail.game.venue.name;
-      // Temporary: find where 365Scores keeps injured / suspended players.
-      const g = detail.game ?? {};
-      const us = g.homeCompetitor?.id === BARCA ? g.homeCompetitor : g.awayCompetitor;
-      console.log(`DEBUG next game keys: ${Object.keys(g).join(',')}`);
-      console.log(`DEBUG our competitor keys: ${Object.keys(us ?? {}).join(',')}`);
-      const find = (o, path = '') => {
-        if (!o || typeof o !== 'object') return;
-        for (const [k, v] of Object.entries(o)) {
-          if (/miss|injur|suspen|absen|doubt|unavail/i.test(k)) console.log(`DEBUG ${path}${k}: ${JSON.stringify(v).slice(0, 700)}`);
-          if (typeof v === 'object' && path.split('.').length < 5) find(v, `${path}${k}.`);
-        }
-      };
-      find(g);
+      unavailableFrom.next = detail.game;
     } catch (e) {
       console.warn(`venue: ${e.message}`);
     }
@@ -608,7 +624,6 @@ async function build() {
 
   const stats = await api(`stats/?competitors=${BARCA}`).catch(() => undefined);
 
-  globalThis.DEBUG_GAME = matches.filter((x) => x.status === 'finished').sort((a, b) => b.kickoff.localeCompare(a.kickoff))[0]?.id;
   // Details of every match that has started.
   await mkdir(`${OUT_DIR}/matches`, { recursive: true });
   let details = 0;

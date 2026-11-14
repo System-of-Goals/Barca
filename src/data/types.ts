@@ -175,6 +175,7 @@ export interface Player {
   photo?: string;
   season?: SeasonStats;
   byCompetition?: (SeasonStats & { competition: string })[];
+  unavailable?: { kind: 'injury' | 'suspension'; reason?: string; expectedReturn?: string };
   // From Wikidata
   career?: CareerSpell[];
   awards?: { name?: string; year?: number }[];
@@ -195,4 +196,6 @@ export interface CareerSpell {
 export interface Squad {
   coach?: Player;
   players: Player[];
+  // Which match the injured/suspended list comes from.
+  unavailableSource?: { opponent?: string; date: string; upcoming: boolean };
 }
