@@ -198,7 +198,7 @@ export function Home({ data }: { data: SiteData }) {
         </section>
         )}
 
-        <div className="footer-note">אתר מעריצים אישי ולא רשמי · אין קשר ל-FC Barcelona</div>
+        <div className="footer-note">אתר מעריצים אישי ולא רשמי · אין קשר ל-FC Barcelona<br />גרסה: {__BUILT_AT__}</div>
       </main>
     </>
   );

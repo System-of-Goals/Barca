@@ -5,8 +5,12 @@ import { VitePWA } from 'vite-plugin-pwa';
 // GitHub Pages serves the site under the repository name.
 const base = '/Barca/';
 
+// Shown at the bottom of the home page, to tell which version a phone is running.
+const builtAt = new Intl.DateTimeFormat('he-IL', { timeZone: 'Asia/Jerusalem', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date());
+
 export default defineConfig({
   base,
+  define: { __BUILT_AT__: JSON.stringify(builtAt) },
   plugins: [
     react(),
     VitePWA({
