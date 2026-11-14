@@ -287,7 +287,11 @@ async function competitionTables(id, name) {
   }
 
   const rankings = async (path, withPhotos) => {
-    const st = await api(path).catch(() => undefined);
+    let st = await api(path).catch(() => undefined);
+    if (!st?.stats?.athletesStats?.tables?.length) {
+      await new Promise((r) => setTimeout(r, 2000));
+      st = await api(path).catch(() => undefined);
+    }
     const out = [];
     for (const t of st?.stats?.athletesStats?.tables ?? []) {
       const list = [];
@@ -749,6 +753,17 @@ async function build() {
       tables.push(await competitionTables(id, name));
     } catch (e) {
       console.warn(`tables ${id}: ${e.message}`);
+    }
+  }
+  // 365Scores sometimes returns no Barcelona rankings for a competition: keep the last published ones.
+  if (tables.some((t) => !t.barcaRankings.length)) {
+    const prev = await fetch(LIVE_SITE + 'data/tables.json').then((r) => (r.ok ? r.json() : [])).catch(() => []);
+    for (const t of tables) {
+      const old = prev.find?.((x) => x.competition === t.competition);
+      if (!t.barcaRankings.length && old?.barcaRankings?.length) {
+        t.barcaRankings = old.barcaRankings;
+        console.warn(`tables ${t.competition}: no Barcelona rankings from 365Scores, kept the published ones`);
+      }
     }
   }
   await writeFile(`${OUT_DIR}/tables.json`, JSON.stringify(tables));
