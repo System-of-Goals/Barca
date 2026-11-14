@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight, Star, User } from 'lucide-react';
-import type { Player, Squad } from '../data/types';
+import type { CareerSpell, Player, Squad } from '../data/types';
 import { asset } from '../data/useSiteData';
 import { useJson } from '../data/useJson';
 
@@ -85,6 +85,23 @@ export function SquadPage() {
         </section>
       )}
     </main>
+  );
+}
+
+function Spell({ c }: { c: CareerSpell }) {
+  const years = c.from ? `${c.from} – ${c.to ?? 'היום'}` : '';
+  return (
+    <div className="spell">
+      <span className={`spell-dot ${c.to ? '' : 'now'}`} />
+      <div className="spell-main">
+        <div className="spell-team">{c.team}{c.loan && <span className="small"> (השאלה)</span>}</div>
+        <div className="small">
+          <bdi>{years}</bdi>
+          {c.apps !== undefined && ` · ${c.apps} משחקים`}
+          {c.goals !== undefined && ` · ${c.goals} שערים`}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -173,12 +190,47 @@ export function PlayerPage() {
           )}
         </section>
       )}
-      {tab !== 'season' && (
-        <section className="card soon">
-          {tab === 'career' && 'הקריירה לפי שנים תתווסף בשלב הבא (מוויקיפדיה).'}
-          {tab === 'titles' && 'התארים של השחקן יתווספו בשלב הבא (מוויקיפדיה).'}
-          {tab === 'contract' && 'החוזה והשכר (הערכה) יתווספו עם דף התקציב.'}
+      {tab === 'career' && (
+        <section className="card">
+          {p.career?.length ? (
+            <>
+              <h2 className="card-title">מועדונים</h2>
+              <div className="timeline">{p.career.filter((c) => !c.national).reverse().map((c, i) => <Spell key={i} c={c} />)}</div>
+              {p.career.some((c) => c.national) && (
+                <>
+                  <h2 className="card-title" style={{ marginTop: 14 }}>נבחרות</h2>
+                  <div className="timeline">{p.career.filter((c) => c.national).reverse().map((c, i) => <Spell key={i} c={c} />)}</div>
+                </>
+              )}
+              <div className="small" style={{ marginTop: 10 }}>מקור: ויקיפדיה (Wikidata). מספרי המשחקים מופיעים רק כשהם קיימים במקור.</div>
+            </>
+          ) : (
+            <div className="soon">לא נמצא מידע על הקריירה של השחקן בוויקיפדיה</div>
+          )}
         </section>
+      )}
+
+      {tab === 'titles' && (
+        <section className="card">
+          <h2 className="card-title">🏆 פרסים והישגים אישיים</h2>
+          {p.awards?.length ? (
+            p.awards.map((a, i) => (
+              <div key={i} className="stand-row">
+                <span className="stand-comp">{a.name}</span>
+                {a.year && <span className="gold">{a.year}</span>}
+              </div>
+            ))
+          ) : (
+            <div className="soon">לא נמצאו פרסים אישיים בוויקיפדיה</div>
+          )}
+          <div className="small" style={{ marginTop: 10 }}>תארים קבוצתיים (אליפויות וגביעים) יתווספו בהמשך.</div>
+        </section>
+      )}
+
+      {tab === 'contract' && <section className="card soon">החוזה והשכר (הערכה) יתווספו עם דף התקציב.</section>}
+
+      {p.wikipedia && (
+        <a className="more" href={p.wikipedia} target="_blank" rel="noreferrer" style={{ textAlign: 'center' }}>לערך בוויקיפדיה ↗</a>
       )}
     </main>
   );

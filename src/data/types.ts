@@ -169,6 +169,20 @@ export interface Player {
   photo?: string;
   season?: SeasonStats;
   byCompetition?: (SeasonStats & { competition: string })[];
+  // From Wikidata
+  career?: CareerSpell[];
+  awards?: { name?: string; year?: number }[];
+  wikipedia?: string;
+}
+
+export interface CareerSpell {
+  team?: string;
+  from?: number;
+  to?: number; // missing = still there
+  apps?: number;
+  goals?: number;
+  loan: boolean;
+  national: boolean;
 }
 
 export interface Squad {

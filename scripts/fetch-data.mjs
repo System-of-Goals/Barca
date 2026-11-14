@@ -266,6 +266,113 @@ async function competitionTables(id, name) {
   };
 }
 
+// ---------- Career and awards from Wikidata (refreshed once a day) ----------
+const WD = 'https://www.wikidata.org/w/api.php';
+const WD_HEADERS = { 'user-agent': 'personal-fan-site-bot/1.0 (non-commercial)' };
+const CAREER_URL = 'https://system-of-goals.github.io/Barca/data/careers.json';
+
+async function wd(params) {
+  const r = await fetch(`${WD}?${new URLSearchParams({ format: 'json', ...params })}`, { headers: WD_HEADERS });
+  if (!r.ok) throw new Error(`wikidata HTTP ${r.status}`);
+  return r.json();
+}
+const year = (snak) => {
+  const t = snak?.[0]?.datavalue?.value?.time;
+  return t ? Number(t.slice(1, 5)) : undefined;
+};
+const amount = (snak) => {
+  const a = snak?.[0]?.datavalue?.value?.amount;
+  return a ? Number(a) : undefined;
+};
+
+// Finds the footballer's Wikidata entry by English name and birth year.
+async function findPlayer(name, birthYear) {
+  const res = await wd({ action: 'wbsearchentities', search: name, language: 'en', type: 'item', limit: '7' });
+  const candidates = (res.search ?? []).filter((x) => /football/i.test(x.description ?? ''));
+  for (const c of candidates) {
+    if (!birthYear) return c.id;
+    const e = await wd({ action: 'wbgetentities', ids: c.id, props: 'claims' });
+    const born = year(e.entities?.[c.id]?.claims?.P569?.map((x) => x.mainsnak));
+    if (!born || Math.abs(born - birthYear) <= 1) return c.id;
+  }
+  return undefined;
+}
+
+async function labels(ids) {
+  const out = new Map();
+  for (let i = 0; i < ids.length; i += 50) {
+    const e = await wd({ action: 'wbgetentities', ids: ids.slice(i, i + 50).join('|'), props: 'labels', languages: 'he|en' });
+    for (const [id, v] of Object.entries(e.entities ?? {})) out.set(id, v.labels?.he?.value ?? v.labels?.en?.value ?? id);
+  }
+  return out;
+}
+
+async function careerOf(qid) {
+  const e = await wd({ action: 'wbgetentities', ids: qid, props: 'claims|sitelinks' });
+  const ent = e.entities?.[qid] ?? {};
+  const teams = (ent.claims?.P54 ?? []).map((c) => ({
+    teamId: c.mainsnak?.datavalue?.value?.id,
+    from: year(c.qualifiers?.P580),
+    to: year(c.qualifiers?.P582),
+    apps: amount(c.qualifiers?.P1350),
+    goals: amount(c.qualifiers?.P1351),
+    loan: Boolean(c.qualifiers?.P1642),
+  })).filter((t) => t.teamId);
+  const awards = (ent.claims?.P166 ?? []).map((c) => ({
+    awardId: c.mainsnak?.datavalue?.value?.id,
+    year: year(c.qualifiers?.P585),
+  })).filter((a) => a.awardId);
+  const site = ent.sitelinks?.hewiki?.title;
+  return { teams, awards, wikipedia: site ? `https://he.wikipedia.org/wiki/${encodeURIComponent(site.replace(/ /g, '_'))}` : undefined };
+}
+
+// Returns { updatedAt, players: { [365 athlete id]: { career, awards, wikipedia } } }.
+async function careers(squad) {
+  try {
+    const r = await fetch(CAREER_URL);
+    if (r.ok) {
+      const old = await r.json();
+      const fresh = Date.now() - new Date(old.updatedAt).getTime() < 24 * 60 * 60 * 1000;
+      const complete = squad.every((p) => old.players?.[p.id] !== undefined);
+      if (fresh && complete) return old;
+    }
+  } catch {
+    // no published copy yet
+  }
+
+  const english = await fetch(`${API}/squads/?appTypeId=5&langId=1&competitors=${BARCA}`, { headers: HEADERS }).then((r) => r.json());
+  const enName = new Map((english.squads?.[0]?.athletes ?? []).map((a) => [String(a.id), a.name]));
+  const raw = {};
+  for (const p of squad) {
+    try {
+      const name = enName.get(p.id);
+      const qid = name && (await findPlayer(name, p.birthdate ? new Date(p.birthdate).getFullYear() : undefined));
+      raw[p.id] = qid ? await careerOf(qid) : null;
+    } catch (e) {
+      console.warn(`career ${p.id}: ${e.message}`);
+      raw[p.id] = null;
+    }
+  }
+  const ids = [...new Set(Object.values(raw).flatMap((c) => (c ? [...c.teams.map((t) => t.teamId), ...c.awards.map((a) => a.awardId)] : [])))];
+  const names = await labels(ids);
+  const isNational = (n) => /נבחרת|national/i.test(n);
+  const players = {};
+  for (const [id, c] of Object.entries(raw)) {
+    players[id] = c && {
+      wikipedia: c.wikipedia,
+      career: c.teams
+        .map(({ teamId, ...t }) => ({ ...t, team: names.get(teamId), national: isNational(names.get(teamId) ?? '') }))
+        .sort((a, b) => (a.from ?? 0) - (b.from ?? 0)),
+      awards: c.awards
+        .map(({ awardId, year }) => ({ name: names.get(awardId), year }))
+        .sort((a, b) => (b.year ?? 0) - (a.year ?? 0)),
+    };
+  }
+  const found = Object.values(players).filter(Boolean).length;
+  console.log(`careers: found ${found}/${squad.length} on Wikidata`);
+  return { updatedAt: new Date().toISOString(), players };
+}
+
 // The squad, with each player's season (public/data/players.json).
 async function squadFile() {
   const res = await api(`squads/?competitors=${BARCA}`);
@@ -372,6 +479,13 @@ async function build() {
 
   try {
     const squad = await squadFile();
+    try {
+      const c = await careers(squad.players);
+      await writeFile(`${OUT_DIR}/careers.json`, JSON.stringify(c));
+      for (const p of squad.players) Object.assign(p, c.players[p.id] ?? {});
+    } catch (e) {
+      console.warn(`careers: ${e.message}`);
+    }
     await writeFile(`${OUT_DIR}/players.json`, JSON.stringify(squad));
     console.log(`squad: ${squad.players.length} players, coach: ${squad.coach?.name ?? '-'}, sample: ${JSON.stringify(squad.players.find((p) => p.season))}`);
   } catch (e) {
