@@ -46,8 +46,10 @@ export function Matches({ data }: { data: SiteData }) {
   const [tab, setTab] = useState<'results' | 'fixtures'>('results');
   const [comp, setComp] = useState<string>('הכול');
 
-  const competitions = ['הכול', ...new Set(data.matches.map((m) => m.competition))];
-  const inComp = data.matches.filter((m) => comp === 'הכול' || m.competition === comp);
+  // All friendly tournaments (Gamper trophy, club friendlies…) share one chip.
+  const group = (c: string) => (/ידידות|גאמפר/.test(c) ? 'ידידות' : c);
+  const competitions = ['הכול', ...new Set(data.matches.map((m) => group(m.competition)))];
+  const inComp = data.matches.filter((m) => comp === 'הכול' || group(m.competition) === comp);
   const results = inComp.filter((m) => m.status !== 'scheduled').sort((a, b) => b.kickoff.localeCompare(a.kickoff));
   const fixtures = inComp.filter((m) => m.status === 'scheduled').sort((a, b) => a.kickoff.localeCompare(b.kickoff));
   const list = tab === 'results' ? results : fixtures;
