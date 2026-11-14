@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom';
 import { BottomNav } from './components/BottomNav';
 import { Home } from './pages/Home';
+import { Matches } from './pages/Matches';
 import { More, Placeholder } from './pages/Placeholder';
 import { useSiteData } from './data/useSiteData';
 
@@ -10,7 +11,7 @@ export function App() {
     <div className="app">
       <Routes>
         <Route path="/" element={data ? <Home data={data} /> : <div className="soon">טוען…</div>} />
-        <Route path="/matches" element={<Placeholder title="משחקים" />} />
+        <Route path="/matches" element={data ? <Matches data={data} /> : <div className="soon">טוען…</div>} />
         <Route path="/matches/:id" element={<Placeholder title="משחק" />} />
         <Route path="/tables" element={<Placeholder title="טבלאות" />} />
         <Route path="/news" element={<Placeholder title="חדשות" />} />
