@@ -181,13 +181,13 @@ export function Home({ data }: { data: SiteData }) {
         <section className="card">
           <h2 className="card-title"><Newspaper size={18} /> חדשות אחרונות</h2>
           {data.news.slice(0, 3).map((n) => (
-            <a key={n.id} href={n.url} className="news-item">
+            <Link key={n.id} to="/news" className="news-item">
               <div className="news-thumb" />
               <div>
                 <div className="news-title">{n.title}</div>
                 <div className="small">{n.source} · {timeAgo(n.publishedAt)}</div>
               </div>
-            </a>
+            </Link>
           ))}
           <Link to="/news" className="more">לכל החדשות ›</Link>
         </section>

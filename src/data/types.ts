@@ -38,8 +38,13 @@ export interface Leader {
 
 export interface NewsItem {
   id: string;
-  title: string;
+  title: string; // Hebrew
+  summary?: string; // Hebrew
+  original?: string; // the source's headline
+  topic?: 'העברות' | 'פציעות' | 'משחקים' | 'מועדון';
+  translatedBy?: 'gemini' | 'machine';
   source: string;
+  sources?: { name: string; url: string }[];
   publishedAt: string; // ISO
   image?: string;
   url: string;

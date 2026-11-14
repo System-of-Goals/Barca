@@ -5,6 +5,7 @@
 
 import { appendFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { collectNews } from './news.mjs';
 
 // Everything the robot reports also goes to robot.log, printed at the end of the workflow.
 for (const level of ['log', 'warn', 'error']) {
@@ -643,7 +644,16 @@ async function build() {
     standings,
     topScorer: await leader(stats, 'שערים'),
     topAssister: await leader(stats, 'בישולים'),
-    news: [],
+    news: await (async () => {
+      try {
+        const n = await collectNews();
+        await writeFile(`${OUT_DIR}/news.json`, JSON.stringify(n));
+        return n.slice(0, 3);
+      } catch (e) {
+        console.warn(`news: ${e.message}`);
+        return [];
+      }
+    })(),
   };
 }
 

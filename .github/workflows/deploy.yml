@@ -29,6 +29,9 @@ jobs:
       - run: npm ci
       - name: Fetch data from 365Scores
         run: node scripts/fetch-data.mjs
+        env:
+          # Optional: better Hebrew news summaries. Add it under Settings → Secrets → Actions.
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       - run: npm run build
       # SPA fallback so deep links (e.g. /Barca/matches) load the app
       - run: cp dist/index.html dist/404.html
