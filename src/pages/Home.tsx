@@ -68,23 +68,28 @@ function NextMatch({ match }: { match: Match }) {
   );
 }
 
-function LastMatch({ match }: { match: Match }) {
+function LastMatch({ match, crest }: { match: Match; crest?: string }) {
   const o = outcome(match);
   return (
     <Link to={`/matches/${match.id}`} className="card card-link">
       <h2 className="card-title">המשחק האחרון</h2>
-      <div className="score-row">
-        <span className="score-team">ברצלונה</span>
-        <span className="score">
+      {/* Barcelona on the right (first in RTL), each score next to its team */}
+      <div className="vs last-vs">
+        <div className="vs-team">
+          <img src={asset(crest) ?? `${import.meta.env.BASE_URL}icons/crest.svg`} alt="" />
+          <span>ברצלונה</span>
+        </div>
+        <div className="vs-score">
           <span>{match.barcaGoals}</span>
           <span className="score-dash">–</span>
           <span>{match.opponentGoals}</span>
-        </span>
-        <span className="score-team opp">
-          {match.opponent.crest && <img className="mini-crest" src={asset(match.opponent.crest)} alt="" />} {match.opponent.name}
-        </span>
+        </div>
+        <div className="vs-team">
+          {match.opponent.crest ? <img src={asset(match.opponent.crest)} alt="" /> : <span className="crest-ph" />}
+          <span>{match.opponent.name}</span>
+        </div>
       </div>
-      <div className="small" style={{ marginTop: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div className="small last-meta">
         {o && <span className={`badge ${o}`}>{outcomeLabel[o]}</span>}
         {match.competition} · {formatDate(match.kickoff)}
       </div>
@@ -142,7 +147,7 @@ export function Home({ data }: { data: SiteData }) {
       {data.isSample && <div className="sample-banner">⚠️ נתוני דוגמה – הנתונים האמיתיים יחוברו בהמשך</div>}
       <main className="page" style={{ marginTop: 12 }}>
         {next && <NextMatch match={next} />}
-        {last && <LastMatch match={last} />}
+        {last && <LastMatch match={last} crest={data.crest} />}
         {played.length > 0 && <LastFive matches={played.slice(0, 5)} />}
 
         {data.standings.length > 0 && (
