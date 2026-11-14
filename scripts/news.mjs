@@ -181,10 +181,16 @@ export async function collectNews() {
 
   let hebrew = picked.map(() => undefined);
   if (process.env.GEMINI_API_KEY && picked.length) {
-    try {
-      hebrew = await geminiBatch(picked.map((p) => p.it));
-    } catch (e) {
-      console.warn(`news: ${e.message} – using machine translation`);
+    // Gemini's free tier is sometimes busy (503/429): try up to three times before falling back.
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        hebrew = await geminiBatch(picked.map((p) => p.it));
+        break;
+      } catch (e) {
+        console.warn(`news: ${e.message} (attempt ${attempt}/3)`);
+        if (attempt < 3 && /HTTP (503|429|500)/.test(e.message)) await new Promise((ok) => setTimeout(ok, 15_000));
+        else break;
+      }
     }
   }
   let byGemini = 0;
