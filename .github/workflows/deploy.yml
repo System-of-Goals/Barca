@@ -29,6 +29,7 @@ jobs:
       - run: npm ci
       - name: Fetch data from 365Scores
         run: node scripts/fetch-data.mjs
+        timeout-minutes: 8
         env:
           # Optional: better Hebrew news summaries. Add it under Settings → Secrets → Actions.
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

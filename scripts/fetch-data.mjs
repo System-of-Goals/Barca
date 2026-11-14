@@ -7,6 +7,10 @@ import { appendFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { collectNews } from './news.mjs';
 
+// No request may hang the robot: every fetch gives up after 25 seconds.
+const plainFetch = globalThis.fetch;
+globalThis.fetch = (url, options = {}) => plainFetch(url, { signal: AbortSignal.timeout(25_000), ...options });
+
 // Everything the robot reports also goes to robot.log, printed at the end of the workflow.
 for (const level of ['log', 'warn', 'error']) {
   const original = console[level].bind(console);

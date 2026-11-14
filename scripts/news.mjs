@@ -149,7 +149,9 @@ export async function collectNews() {
     if (md && fromMd >= 12) continue;
     if (!md && translated - fromMd >= 13) continue;
     try {
+      const started = Date.now();
       const he = await toHebrew(it);
+      if (Date.now() - started > 10_000) console.warn(`news: slow translation (${Math.round((Date.now() - started) / 1000)}s)`);
       translated++;
       if (md) fromMd++;
       stories.push({
