@@ -96,9 +96,21 @@ async function leader(stats, tableName) {
 }
 
 
+// Each Barcelona player's season, added up from the match details.
+const season = new Map(); // athleteId -> totals
+function totals(athleteId, competition) {
+  if (!season.has(athleteId)) season.set(athleteId, { all: blank(), byCompetition: {} });
+  const t = season.get(athleteId);
+  t.byCompetition[competition] ??= blank();
+  return [t.all, t.byCompetition[competition]];
+}
+function blank() {
+  return { apps: 0, starts: 0, minutes: 0, goals: 0, assists: 0, yellow: 0, red: 0, ratingSum: 0, ratings: 0 };
+}
+
 // Full details of one played (or live) match: events, lineups, statistics.
 // Written to public/data/matches/<id>.json, read by the match page.
-async function matchDetail(gameId) {
+async function matchDetail(gameId, competition, finished) {
   const [{ game: g }, statsRes] = await Promise.all([
     api(`game/?gameId=${gameId}`),
     api(`game/stats/?games=${gameId}`).catch(() => ({})),
@@ -130,6 +142,20 @@ async function matchDetail(gameId) {
       extra: (e.extraPlayers ?? []).map(nameOf).filter(Boolean),
     }));
 
+  if (finished) {
+    for (const e of g.events ?? []) {
+      if (e.competitorId !== BARCA) continue;
+      const kind = kindOf(e.eventType);
+      const who = people.get(e.playerId)?.athleteId;
+      if (kind === 'goal' && who && !/עצמי/.test(e.eventType.subTypeName ?? '')) {
+        totals(who, competition).forEach((t) => t.goals++);
+        const helper = people.get(e.extraPlayers?.[0])?.athleteId;
+        if (helper) totals(helper, competition).forEach((t) => t.assists++);
+      }
+      if ((kind === 'yellow' || kind === 'red') && who) totals(who, competition).forEach((t) => t[kind]++);
+    }
+  }
+
   async function lineup(c, withPhotos) {
     const lu = c.lineups;
     if (!lu?.members?.length) return undefined;
@@ -137,6 +163,20 @@ async function matchDetail(gameId) {
     for (const m of lu.members) {
       const id = m.id ?? m.playerId ?? m.athleteId;
       const p = people.get(id) ?? {};
+      if (finished && c.id === BARCA && p.athleteId) {
+        const minutes = parseInt(m.stats?.find((x) => x.type === 30)?.value ?? '0', 10) || 0;
+        if (m.status === 1 || minutes > 0) {
+          for (const t of totals(p.athleteId, competition)) {
+            t.apps++;
+            if (m.status === 1) t.starts++;
+            t.minutes += minutes;
+            if (typeof m.ranking === 'number' && m.ranking > 0) {
+              t.ratingSum += m.ranking;
+              t.ratings++;
+            }
+          }
+        }
+      }
       players.push({
         id: String(p.athleteId ?? id),
         name: p.shortName || p.name || '',
@@ -226,6 +266,46 @@ async function competitionTables(id, name) {
   };
 }
 
+// The squad, with each player's season (public/data/players.json).
+async function squadFile() {
+  const res = await api(`squads/?competitors=${BARCA}`);
+  const countries = new Map((res.countries ?? []).map((c) => [c.id, c.name]));
+  const finish = (t) => {
+    const { ratingSum, ratings, ...rest } = t;
+    return { ...rest, rating: ratings ? Math.round((ratingSum / ratings) * 100) / 100 : undefined };
+  };
+  const players = [];
+  let coach;
+  for (const a of res.squads?.[0]?.athletes ?? []) {
+    const base = {
+      id: String(a.id),
+      name: a.shortName || a.name,
+      fullName: a.name,
+      number: a.jerseyNum,
+      position: a.position?.name,
+      detailedPosition: a.formationPosition?.name,
+      positionOrder: a.formationPosition?.order ?? 99,
+      age: a.age,
+      birthdate: a.birthdate,
+      height: a.height,
+      nationality: countries.get(a.nationalityId),
+      photo: await saveImage('Athletes', a.id, a.imageVersion),
+    };
+    if (/מאמן/.test(a.position?.name ?? '')) {
+      coach = base;
+      continue;
+    }
+    const t = season.get(a.id);
+    players.push({
+      ...base,
+      season: t ? finish(t.all) : undefined,
+      byCompetition: t ? Object.entries(t.byCompetition).map(([competition, v]) => ({ competition, ...finish(v) })) : [],
+    });
+  }
+  players.sort((x, y) => x.positionOrder - y.positionOrder || (x.number ?? 99) - (y.number ?? 99));
+  return { coach, players };
+}
+
 async function build() {
   await mkdir(IMG_DIR, { recursive: true });
   const crest = await saveImage('Competitors', BARCA, 9);
@@ -279,7 +359,7 @@ async function build() {
   let details = 0;
   for (const m of matches.filter((x) => x.status !== 'scheduled')) {
     try {
-      const d = await matchDetail(m.id);
+      const d = await matchDetail(m.id, m.competition, m.status === 'finished');
       if (m.venue === 'בית' || m.venue === 'חוץ') m.venue = d.venue ?? m.venue;
       await writeFile(`${OUT_DIR}/matches/${m.id}.json`, JSON.stringify(d));
       if (!details) console.log(`sample detail ${m.id}: ${d.events.length} events, ${d.stats.length} stats, lineup ${JSON.stringify(d.lineups.barca?.players?.slice(0, 2))}`);
@@ -289,6 +369,14 @@ async function build() {
     }
   }
   console.log(`match details: ${details}`);
+
+  try {
+    const squad = await squadFile();
+    await writeFile(`${OUT_DIR}/players.json`, JSON.stringify(squad));
+    console.log(`squad: ${squad.players.length} players, coach: ${squad.coach?.name ?? '-'}, sample: ${JSON.stringify(squad.players.find((p) => p.season))}`);
+  } catch (e) {
+    console.warn(`squad: ${e.message}`);
+  }
 
   const tables = [];
   for (const [id, name] of competitions.filter(([, n]) => !isFriendly(n))) {

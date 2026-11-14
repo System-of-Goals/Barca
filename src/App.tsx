@@ -4,6 +4,7 @@ import { Home } from './pages/Home';
 import { Matches } from './pages/Matches';
 import { MatchPage } from './pages/MatchPage';
 import { Tables } from './pages/Tables';
+import { PlayerPage, SquadPage } from './pages/Squad';
 import { More, Placeholder } from './pages/Placeholder';
 import { useSiteData } from './data/useSiteData';
 
@@ -18,8 +19,8 @@ export function App() {
         <Route path="/tables" element={data ? <Tables data={data} /> : <div className="soon">טוען…</div>} />
         <Route path="/news" element={<Placeholder title="חדשות" />} />
         <Route path="/more" element={<More />} />
-        <Route path="/squad" element={<Placeholder title="סגל" />} />
-        <Route path="/players/:id" element={<Placeholder title="שחקן" />} />
+        <Route path="/squad" element={<SquadPage />} />
+        <Route path="/players/:id" element={<PlayerPage />} />
         <Route path="/history" element={<Placeholder title="היסטוריה" />} />
         <Route path="/budget" element={<Placeholder title="תקציב" />} />
         <Route path="/about" element={<Placeholder title="אודות" />} />

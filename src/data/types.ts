@@ -142,3 +142,36 @@ export interface CompetitionTables {
   barcaRankings: Ranking[];
   allRankings: Ranking[];
 }
+
+// public/data/players.json: the squad and each player's season.
+export interface SeasonStats {
+  apps: number;
+  starts: number;
+  minutes: number;
+  goals: number;
+  assists: number;
+  yellow: number;
+  red: number;
+  rating?: number; // average
+}
+
+export interface Player {
+  id: string;
+  name: string;
+  fullName: string;
+  number?: number;
+  position?: string; // שוער / מגן / קשר / חלוץ
+  detailedPosition?: string;
+  age?: number;
+  birthdate?: string;
+  height?: number;
+  nationality?: string;
+  photo?: string;
+  season?: SeasonStats;
+  byCompetition?: (SeasonStats & { competition: string })[];
+}
+
+export interface Squad {
+  coach?: Player;
+  players: Player[];
+}

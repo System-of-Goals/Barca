@@ -315,3 +315,36 @@ button { font: inherit; color: inherit; }
 .rank-photo img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
 .rank-name { flex: 1; min-width: 0; }
 .rank-value { font-size: 20px; font-weight: 900; color: var(--gold); font-variant-numeric: tabular-nums; }
+
+/* Squad page */
+.coach { display: flex; align-items: center; gap: 14px; }
+.coach-photo { width: 64px; height: 64px; border-radius: 50%; overflow: hidden; background: linear-gradient(160deg, var(--blue), var(--garnet)); display: grid; place-items: center; flex-shrink: 0; }
+.coach-photo img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.squad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.player-card { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px 10px; border-radius: 14px; border: 1px solid var(--line); background: linear-gradient(180deg, var(--card-2), var(--card)); text-align: center; }
+.player-photo { width: 76px; height: 76px; border-radius: 50%; overflow: hidden; background: linear-gradient(160deg, var(--blue), var(--garnet)); display: grid; place-items: center; color: rgba(255, 255, 255, 0.6); }
+.player-photo img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.player-num { position: absolute; top: 6px; right: 8px; color: var(--gold); font-weight: 900; font-size: 18px; }
+.player-name { font-weight: 800; font-size: 14px; }
+
+/* Player page */
+.player-hero {
+  position: relative;
+  overflow: hidden;
+  min-height: 250px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: repeating-linear-gradient(90deg, var(--blue) 0 40px, var(--garnet) 40px 80px);
+}
+.player-hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, transparent 30%, rgba(10, 17, 40, 0.95) 92%); }
+.player-hero-num { position: absolute; top: -10px; left: 14px; font-size: 150px; font-weight: 900; color: var(--gold); line-height: 1; z-index: 1; opacity: 0.95; }
+.player-hero-photo { position: absolute; bottom: 0; right: 4px; width: 210px; height: 230px; display: grid; place-items: center; color: rgba(255, 255, 255, 0.5); z-index: 1; }
+.player-hero-photo img { width: 100%; height: 100%; object-fit: contain; object-position: bottom; }
+.player-hero-text { position: absolute; bottom: 12px; right: 16px; left: 16px; z-index: 2; }
+.player-hero-text h1 { margin: 0; font-size: 30px; font-weight: 900; line-height: 1.1; }
+.stat-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.stat-tile { text-align: center; padding: 10px 2px; border-radius: 14px; border: 1px solid var(--line); background: var(--card); }
+.stat-tile-num { font-size: 28px; font-weight: 900; color: var(--gold); line-height: 1.1; display: flex; align-items: flex-start; justify-content: center; gap: 2px; }
+.stat-tile-label { font-size: 12px; color: var(--muted); }
+.season-grid { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; }
+.season-grid b { color: var(--gold); font-size: 18px; text-align: left; }
