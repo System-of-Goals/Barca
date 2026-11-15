@@ -7,6 +7,7 @@ import { useJson } from '../data/useJson';
 import { formatDate } from '../lib/format';
 import { contractFor, contractSources } from '../data/contracts';
 import { honoursFor, honoursSource } from '../data/honours';
+import { storyFor, storiesSource } from '../data/stories';
 import { Money } from './Budget';
 import { useSiteData } from '../data/useSiteData';
 
@@ -148,7 +149,7 @@ export function PlayerPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const squad = useJson<Squad>('players.json');
-  const [tab, setTab] = useState<'season' | 'career' | 'titles' | 'contract'>('season');
+  const [tab, setTab] = useState<'season' | 'career' | 'titles' | 'contract' | 'story'>('season');
   const [hTab, setHTab] = useState<'team' | 'personal'>('team');
   const site = useSiteData();
 
@@ -200,6 +201,7 @@ export function PlayerPage() {
         <button className={tab === 'career' ? 'active' : ''} onClick={() => setTab('career')}>קריירה</button>
         <button className={tab === 'titles' ? 'active' : ''} onClick={() => setTab('titles')}>תארים</button>
         <button className={tab === 'contract' ? 'active' : ''} onClick={() => setTab('contract')}>חוזה</button>
+        <button className={tab === 'story' ? 'active' : ''} onClick={() => setTab('story')}>הסיפור</button>
       </div>
 
       {tab === 'season' && (
@@ -301,6 +303,34 @@ export function PlayerPage() {
                 מקור: <a href={honoursSource.url} target="_blank" rel="noreferrer" style={{ color: 'var(--gold)' }}>{honoursSource.name} ↗</a> · עודכן {honoursSource.updated}
               </div>
             )}
+          </>
+        );
+      })()}
+      {tab === 'story' && (() => {
+        const st = storyFor(p.number);
+        if (!st) return <section className="card soon">עוד אין סיפור רקע לשחקן הזה</section>;
+        return (
+          <>
+            <div className="story-born">🎂 נולד ב-{st.born}</div>
+            <section className="card story">
+              <h2 className="card-title">🏡 ילדות ומשפחה</h2>
+              {st.childhood.map((t, i) => <p key={i}>{t}</p>)}
+            </section>
+            <section className="card story">
+              <h2 className="card-title">🛤️ הדרך לברצלונה</h2>
+              {st.path.map((t, i) => <p key={i}>{t}</p>)}
+            </section>
+            <section className="card story">
+              <h2 className="card-title">❤️ חיים אישיים</h2>
+              <p>{st.personal}</p>
+            </section>
+            <section className="card story">
+              <h2 className="card-title">⚽ סגנון משחק</h2>
+              <p>{st.style}</p>
+            </section>
+            <div className="small" style={{ textAlign: 'center' }}>
+              מקור: {storiesSource.name} · עודכן {storiesSource.updated}. מידע על חיים אישיים מבוסס על פרסומים ועשוי להיות חלקי.
+            </div>
           </>
         );
       })()}

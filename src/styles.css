@@ -495,3 +495,8 @@ button { font: inherit; color: inherit; }
 .sort-fixed .wage-head .wage-fixed, .sort-value .wage-head .wage-value { color: var(--gold); }
 .wage-total-value { grid-column: 1 / -1; border: 1px solid transparent; }
 .wage-total-value.on { border-color: var(--gold); background: rgba(237, 187, 0, 0.08) !important; }
+
+/* Player story */
+.story p { margin: 0 0 10px; line-height: 1.65; font-size: 15px; }
+.story p:last-child { margin-bottom: 0; }
+.story-born { text-align: center; font-weight: 700; color: var(--gold); margin: 2px 0 12px; }
