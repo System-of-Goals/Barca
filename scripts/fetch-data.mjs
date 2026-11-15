@@ -505,29 +505,39 @@ const LEGENDS = [
 ];
 const LIVE_IMG = 'https://system-of-goals.github.io/Barca/';
 
+// Each legend is found by the exact title of their English Wikipedia article (a label search mixed up
+// the two Luis Suárez and missed some players).
 async function legendPhotos() {
   const values = LEGENDS.map((n) => `"${n.replace(/"/g, '\\"')}"@en`).join(' ');
-  const rows = await sparql(`SELECT ?name ?image WHERE {
-  VALUES ?name { ${values} }
-  ?p rdfs:label ?name; wdt:P54 wd:Q7156; wdt:P18 ?image.
+  const rows = await sparql(`SELECT ?title ?image WHERE {
+  VALUES ?title { ${values} }
+  ?article schema:about ?p; schema:isPartOf <https://en.wikipedia.org/>; schema:name ?title.
+  ?p wdt:P18 ?image.
 }`);
   const out = {};
+  const missing = [];
   for (const [i, name] of LEGENDS.entries()) {
-    const image = rows.find((r) => v(r, 'name') === name)?.image?.value;
-    if (!image) continue;
+    const image = rows.find((r) => v(r, 'title') === name)?.image?.value;
+    if (!image) {
+      missing.push(`${name} (no image on Wikidata)`);
+      continue;
+    }
     const file = decodeURIComponent(image.split('/Special:FilePath/')[1] ?? '');
-    const path = `img/legend-${i}.jpg`;
+    const path = `img/legend2-${i}.jpg`; // new name: replaces the old copies, one of which was the wrong person
     // Reuse the copy already on our site; only go to Commons the first time.
     let r = await fetch(LIVE_IMG + path).catch(() => undefined);
-    if (!r?.ok) {
+    for (let attempt = 0; !r?.ok && attempt < 3; attempt++) {
       r = await fetch(`https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}?width=320`, { headers: WD_HEADERS }).catch(() => undefined);
-      await new Promise((ok) => setTimeout(ok, 1000));
+      await new Promise((ok) => setTimeout(ok, 1500 * (attempt + 1)));
     }
-    if (!r?.ok) continue;
+    if (!r?.ok) {
+      missing.push(`${name} (download HTTP ${r?.status ?? 'error'})`);
+      continue;
+    }
     await writeFile(`public/${path}`, Buffer.from(await r.arrayBuffer()));
     out[i] = { photo: path, credit: `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(file.replace(/ /g, '_'))}` };
   }
-  console.log(`legend photos: ${Object.keys(out).length}/${LEGENDS.length}`);
+  console.log(`legend photos: ${Object.keys(out).length}/${LEGENDS.length}${missing.length ? ` · missing: ${missing.join(', ')}` : ''}`);
   return out;
 }
 
