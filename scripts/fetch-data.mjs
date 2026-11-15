@@ -514,15 +514,25 @@ async function legendPhotos() {
   ?article schema:about ?p; schema:isPartOf <https://en.wikipedia.org/>; schema:name ?title.
   ?p wdt:P18 ?image.
 }`);
+  // Fallback for legends whose Wikidata entry has no photo: the lead image of their English Wikipedia
+  // article, used only when it is a free file on Wikimedia Commons.
+  const noWikidata = LEGENDS.filter((name) => !rows.some((r) => v(r, 'title') === name));
+  const pageImages = {};
+  if (noWikidata.length) {
+    const q = new URLSearchParams({ action: 'query', prop: 'pageimages', piprop: 'name', format: 'json', formatversion: '2', redirects: '1', titles: noWikidata.join('|') });
+    const j = await fetch(`https://en.wikipedia.org/w/api.php?${q}`, { headers: WD_HEADERS }).then((r) => r.json()).catch(() => ({}));
+    const back = new Map([...(j.query?.normalized ?? []), ...(j.query?.redirects ?? [])].map((x) => [x.to, x.from]));
+    for (const pg of j.query?.pages ?? []) if (pg.pageimage) pageImages[back.get(pg.title) ?? pg.title] = pg.pageimage;
+  }
   const out = {};
   const missing = [];
   for (const [i, name] of LEGENDS.entries()) {
-    const image = rows.find((r) => v(r, 'title') === name)?.image?.value;
-    if (!image) {
-      missing.push(`${name} (no image on Wikidata)`);
+    const fromWikidata = rows.find((r) => v(r, 'title') === name)?.image?.value;
+    const file = fromWikidata ? decodeURIComponent(fromWikidata.split('/Special:FilePath/')[1] ?? '') : pageImages[name]?.replace(/_/g, ' ');
+    if (!file) {
+      missing.push(`${name} (no free image found)`);
       continue;
     }
-    const file = decodeURIComponent(image.split('/Special:FilePath/')[1] ?? '');
     const path = `img/legend2-${i}.jpg`; // new name: replaces the old copies, one of which was the wrong person
     // Reuse the copy already on our site; only go to Commons the first time.
     let r = await fetch(LIVE_IMG + path).catch(() => undefined);
