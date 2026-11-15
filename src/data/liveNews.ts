@@ -61,12 +61,24 @@ async function fetchLive(): Promise<NewsItem[]> {
   }
 }
 
-/** The robot's news plus any newer posts found live in the channel. */
-export function useLiveNews(base: NewsItem[] | null | undefined): NewsItem[] | null | undefined {
+export type LiveStatus = 'checking' | 'ok' | 'off';
+
+/** The robot's news plus any newer posts found live in the channel, and how the live check went. */
+export function useLiveNewsState(base: NewsItem[] | null | undefined) {
   const [live, setLive] = useState<NewsItem[]>([]);
+  const [status, setStatus] = useState<LiveStatus>('checking');
+  const [checkedAt, setCheckedAt] = useState<Date>();
   useEffect(() => {
     let alive = true;
-    const run = () => fetchLive().then((l) => alive && l.length && setLive(l));
+    const run = () =>
+      fetchLive().then((l) => {
+        if (!alive) return;
+        setStatus(l.length ? 'ok' : 'off');
+        if (l.length) {
+          setLive(l);
+          setCheckedAt(new Date());
+        }
+      });
     run();
     const timer = setInterval(() => document.visibilityState === 'visible' && run(), EVERY);
     const onShow = () => document.visibilityState === 'visible' && run();
@@ -77,9 +89,11 @@ export function useLiveNews(base: NewsItem[] | null | undefined): NewsItem[] | n
       document.removeEventListener('visibilitychange', onShow);
     };
   }, []);
-  if (base === undefined && !live.length) return base;
   const list = base ?? [];
   const newest = Math.max(0, ...list.map((n) => Number(n.id)));
   const fresh = live.filter((n) => Number(n.id) > newest).sort((a, b) => Number(b.id) - Number(a.id));
-  return fresh.length ? [...fresh, ...list] : base;
+  const news = base === undefined && !live.length ? base : fresh.length ? [...fresh, ...list] : base;
+  return { news, status, checkedAt, fresh: fresh.length };
 }
+
+export const useLiveNews = (base: NewsItem[] | null | undefined) => useLiveNewsState(base).news;

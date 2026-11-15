@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight, ExternalLink } from 'lucide-react';
 import type { NewsItem } from '../data/types';
 import { useJson } from '../data/useJson';
-import { useLiveNews } from '../data/liveNews';
+import { useLiveNewsState } from '../data/liveNews';
 
 const CHANNEL_URL = 'https://t.me/barcamaniail';
 
@@ -41,7 +41,12 @@ function ChannelHeader({ name }: { name?: string }) {
 }
 
 export function News() {
-  const news = useLiveNews(useJson<NewsItem[]>('news.json'));
+  const { news, status, checkedAt, fresh } = useLiveNewsState(useJson<NewsItem[]>('news.json'));
+  const time = checkedAt?.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+  const statusLine =
+    status === 'checking' ? '🔄 בודק אם עלו פוסטים חדשים בערוץ…'
+    : status === 'ok' ? `✅ נבדק מול הערוץ ב-${time}${fresh ? ` · ${fresh} פוסטים חדשים נוספו למעלה` : ' · אין פוסטים חדשים'}`
+    : '⚠️ הבדיקה החיה לא זמינה כרגע – מוצגות החדשות מהעדכון האחרון';
   const [shown, setShown] = useState(15);
   if (news === undefined) return <main className="page"><h1 className="page-title">חדשות</h1><div className="soon">טוען…</div></main>;
   const list = news ?? [];
@@ -49,6 +54,7 @@ export function News() {
     <main className="page">
       <h1 className="page-title">📰 חדשות</h1>
       <ChannelHeader name={list[0]?.source} />
+      <div className={`live-status ${status}`}>{statusLine}</div>
       {list.length === 0 && <div className="card soon">אין הודעות להצגה כרגע</div>}
       {list.slice(0, shown).map((n) => <TelegramPost key={n.id} post={n.post} />)}
       {list.length > shown && <button className="more show-all" onClick={() => setShown(shown + 15)}>טען עוד הודעות ›</button>}
