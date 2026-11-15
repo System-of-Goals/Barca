@@ -807,13 +807,15 @@ async function build() {
     news: await (async () => {
       try {
         const n = await collectTelegram();
-        // Check that the live feed the site reads in the browser answers and allows web pages to read it.
-        await fetch('https://rsshub.app/telegram/channel/barcamaniail?format=json', { headers: { origin: 'https://system-of-goals.github.io' } })
-          .then(async (r) => {
-            const j = r.ok ? await r.json().catch(() => ({})) : {};
-            console.log(`live feed: HTTP ${r.status}, cors=${r.headers.get('access-control-allow-origin') ?? '-'}, items=${j.items?.length ?? 0}, first=${j.items?.[0]?.url ?? '-'}`);
-          })
-          .catch((e) => console.warn(`live feed: ${e.message}`));
+        // Check that the relays the site uses in the browser answer and allow web pages to read the channel.
+        for (const relay of ['https://api.allorigins.win/raw?url=', 'https://corsproxy.io/?url=']) {
+          await fetch(relay + encodeURIComponent('https://t.me/s/barcamaniail'), { headers: { origin: 'https://system-of-goals.github.io' } })
+            .then(async (r) => {
+              const html = r.ok ? await r.text() : '';
+              console.log(`live relay ${new URL(relay).host}: HTTP ${r.status}, cors=${r.headers.get('access-control-allow-origin') ?? '-'}, posts=${html.split('tgme_widget_message_wrap').length - 1}`);
+            })
+            .catch((e) => console.warn(`live relay ${relay}: ${e.message}`));
+        }
         await writeFile(`${OUT_DIR}/news.json`, JSON.stringify(n));
         // Home page: the latest posts that have text (photo-only posts are on the news page).
         return n.filter((p) => p.hasText ?? Boolean(p.text)).slice(0, 3);
