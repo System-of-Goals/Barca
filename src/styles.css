@@ -470,3 +470,24 @@ button { font: inherit; color: inherit; }
 .live-status { font-size: 13px; text-align: center; color: var(--muted); margin: -4px 0 10px; }
 .live-status.ok { color: #22c55e; }
 .live-status.off { color: #f59e0b; }
+
+/* Salary table */
+.wage-totals { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.wage-totals > div { display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.05); }
+.wage-totals b { font-size: 20px; color: var(--gold); }
+.wage-table { margin: 0 -6px; }
+.wage-row { display: grid; grid-template-columns: 16px minmax(0, 1fr) 58px 44px; align-items: center; gap: 5px; padding: 8px 6px; color: inherit; text-decoration: none; border-radius: 10px; }
+.wage-row + .wage-row { border-top: 1px solid var(--line); }
+.wage-row:nth-child(odd):not(.wage-head) { background: rgba(255, 255, 255, 0.025); }
+.wage-head { font-size: 11px; color: var(--muted); font-weight: 700; padding-top: 0; }
+.wage-rank { color: var(--muted); font-weight: 700; text-align: center; font-size: 13px; }
+.wage-player { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.wage-photo { width: 30px; height: 30px; flex-shrink: 0; border-radius: 50%; overflow: hidden; background: #fff; display: grid; place-items: center; color: var(--night, #0a1128); font-weight: 800; font-size: 13px; border: 2px solid var(--gold); }
+.wage-photo img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.wage-name { display: flex; flex-direction: column; min-width: 0; }
+.wage-name b { font-size: 14px; line-height: 1.25; }
+.wage-name .small { font-size: 11px; white-space: nowrap; }
+.wage-num { text-align: left; font-variant-numeric: tabular-nums; font-size: 13px; direction: ltr; }
+.wage-head .wage-num { direction: rtl; text-align: center; line-height: 1.2; }
+.wage-main { color: var(--gold); font-weight: 800; font-size: 15px; }
+.wage-value { color: var(--muted); }

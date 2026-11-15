@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { asset } from '../data/useSiteData';
 import { contracts, contractSources, payroll } from '../data/contracts';
 import { Link } from 'react-router-dom';
 import type { SiteData, Squad } from '../data/types';
@@ -42,7 +44,8 @@ export function Budget({ data }: { data: SiteData }) {
   const squad = useJson<Squad>('players.json');
   const max = Math.max(...revenueBySeason.map((r) => r.revenue));
   const capUse = Math.round((salaryCap.wageBillEstimate / salaryCap.limit) * 100);
-  const rows = [...contracts].sort((a, b) => b.fixed - a.fixed);
+  const [wageSort, setWageSort] = useState<'fixed' | 'value'>('fixed');
+  const rows = [...contracts].sort((a, b) => (wageSort === 'value' ? b.value - a.value : b.fixed - a.fixed));
 
   return (
     <main className="page">
@@ -104,28 +107,49 @@ export function Budget({ data }: { data: SiteData }) {
       </section>
 
       <section className="card">
-        <h2 className="card-title">💶 שכר שחקנים (הערכה, ברוטו לשנה)</h2>
-        <div className="budget-row"><span>כל הסגל – שכר קבוע</span><Money m={payroll.fixed} rate={rate} /></div>
-        <div className="budget-row"><span>כל הסגל – כולל בונוסים</span><Money m={payroll.total} rate={rate} /></div>
-        {rows.map((c) => {
-          const p = squad?.players.find((x) => x.number === c.number);
-          const line = (
-            <>
-              <div className="budget-row">
-                <span className="spell-team">{c.name}</span>
-                <Money m={c.fixed} rate={rate} />
-              </div>
-              <div className="small">כולל בונוסים: €{c.total} מיליון · שווי שוק: €{c.value} מיליון</div>
-            </>
-          );
-          return p ? (
-            <Link key={c.number} to={`/players/${p.id}`} className="salary-row">{line}</Link>
-          ) : (
-            <div key={c.number} className="salary-row">{line}</div>
-          );
-        })}
+        <h2 className="card-title">💶 שכר שחקנים · 2026/27</h2>
+        <div className="wage-totals">
+          <div><span className="small">כל הסגל – שכר קבוע</span><b>€{payroll.fixed} מ׳</b>{rate && <span className="small">כ-₪{Math.round(payroll.fixed * rate)} מ׳</span>}</div>
+          <div><span className="small">כולל בונוסים</span><b>€{payroll.total} מ׳</b>{rate && <span className="small">כ-₪{Math.round(payroll.total * rate)} מ׳</span>}</div>
+        </div>
+
+        <div className="chips">
+          <button className={wageSort === 'fixed' ? 'chip active' : 'chip'} onClick={() => setWageSort('fixed')}>לפי שכר</button>
+          <button className={wageSort === 'value' ? 'chip active' : 'chip'} onClick={() => setWageSort('value')}>לפי שווי שוק</button>
+        </div>
+
+        <div className="wage-table">
+          <div className="wage-row wage-head">
+            <span className="wage-rank">#</span>
+            <span className="wage-player">שחקן</span>
+            <span className="wage-num">שכר לשנה</span>
+            <span className="wage-num">שווי שוק</span>
+          </div>
+          {rows.map((c, i) => {
+            const p = squad?.players.find((x) => x.number === c.number);
+            const cells = (
+              <>
+                <span className="wage-rank">{i + 1}</span>
+                <span className="wage-player">
+                  <span className="wage-photo">{p?.photo ? <img src={asset(p.photo)} alt="" loading="lazy" /> : <span>{c.number}</span>}</span>
+                  <span className="wage-name">
+                    <b>{c.name}</b>
+                    <span className="small">עם בונוס <bdi dir="ltr">€{c.total}</bdi></span>
+                  </span>
+                </span>
+                <span className="wage-num wage-main">€{c.fixed}</span>
+                <span className="wage-num wage-value">€{c.value}</span>
+              </>
+            );
+            return p ? (
+              <Link key={c.number} to={`/players/${p.id}`} className="wage-row">{cells}</Link>
+            ) : (
+              <div key={c.number} className="wage-row">{cells}</div>
+            );
+          })}
+        </div>
         <div className="small" style={{ marginTop: 8 }}>
-          {salariesNote} מקורות: <a href={contractSources.salaries.url} target="_blank" rel="noreferrer">{contractSources.salaries.name} ↗</a> · <a href={contractSources.value.url} target="_blank" rel="noreferrer">{contractSources.value.name} ↗</a>
+          הסכומים במיליוני אירו. {salariesNote} מקורות: <a href={contractSources.salaries.url} target="_blank" rel="noreferrer">{contractSources.salaries.name} ↗</a> · <a href={contractSources.value.url} target="_blank" rel="noreferrer">{contractSources.value.name} ↗</a>
         </div>
       </section>
 
