@@ -5,7 +5,7 @@ import { Matches } from './pages/Matches';
 import { MatchPage } from './pages/MatchPage';
 import { Tables } from './pages/Tables';
 import { PlayerPage, SquadPage } from './pages/Squad';
-import { History, HistoryChapter } from './pages/History';
+import { History, HistoryChapter, LegendPage } from './pages/History';
 import { Budget } from './pages/Budget';
 import { About } from './pages/About';
 import { News, NewsArticle } from './pages/News';
@@ -27,6 +27,7 @@ export function App() {
         <Route path="/squad" element={<SquadPage />} />
         <Route path="/players/:id" element={<PlayerPage />} />
         <Route path="/history" element={<History />} />
+        <Route path="/history/legends/:n" element={<LegendPage />} />
         <Route path="/history/:chapter" element={<HistoryChapter />} />
         <Route path="/budget" element={data ? <Budget data={data} /> : <div className="soon">טוען…</div>} />
         <Route path="/about" element={data ? <About data={data} /> : <div className="soon">טוען…</div>} />

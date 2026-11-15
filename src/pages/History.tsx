@@ -17,6 +17,7 @@ import {
   titlesAsOf,
   todayInHistory,
 } from '../data/history';
+import { legendStories, legendStoriesSource } from '../data/legendStories';
 
 const Paragraphs = ({ items }: { items: string[] }) => (
   <section className="card prose">{items.map((t, i) => <p key={i}>{t}</p>)}</section>
@@ -29,23 +30,78 @@ function Legends() {
       {legends.map((l, i) => {
         const ph = photos?.[i];
         return (
-          <div key={l.name} className="legend-row">
+          <Link key={l.name} to={`/history/legends/${i + 1}`} className="legend-row legend-link">
             {ph ? (
-              <a href={ph.credit} target="_blank" rel="noreferrer" className="legend-photo" title="תמונה: ויקישיתוף">
-                <img src={asset(ph.photo)} alt={l.name} loading="lazy" />
-              </a>
+              <span className="legend-photo"><img src={asset(ph.photo)} alt={l.name} loading="lazy" /></span>
             ) : (
               <span className="legend-num">{i + 1}</span>
             )}
-            <div>
-              <div className="spell-team">{l.name} <span className="small">· {l.years}</span></div>
+            <div className="legend-body">
+              <div className="spell-team">{l.name} <span className="small">· <bdi dir="ltr">{l.years}</bdi></span></div>
               <div className="history-text">{l.text}</div>
+              <span className="legend-more">לסיפור המלא ›</span>
             </div>
-          </div>
+          </Link>
         );
       })}
-      <div className="small" style={{ marginTop: 8 }}>תמונות: ויקישיתוף (Wikimedia Commons). לחיצה על תמונה מציגה את פרטי הזכויות.</div>
+      <div className="small" style={{ marginTop: 8 }}>לחיצה על אגדה פותחת את הסיפור המלא. תמונות: ויקישיתוף (Wikimedia Commons).</div>
     </section>
+  );
+}
+
+export function LegendPage() {
+  const { n } = useParams();
+  const navigate = useNavigate();
+  const photos = useJson<Record<string, { photo: string; credit: string }>>('legends.json');
+  const i = Number(n) - 1;
+  const l = legends[i];
+  const st = legendStories[i];
+  if (!l || !st) return <main className="page"><h1 className="page-title">האגדה לא נמצאה</h1><Link to="/history/legends" className="more">לכל האגדות ›</Link></main>;
+  const ph = photos?.[i];
+  const prev = i > 0 ? i : undefined;
+  const next = i < legends.length - 1 ? i + 2 : undefined;
+  return (
+    <main className="page">
+      <button className="back" onClick={() => (history.length > 1 ? navigate(-1) : navigate('/history/legends'))}>
+        <ChevronRight size={20} /> האגדות
+      </button>
+
+      <section className="card legend-hero">
+        <div className="legend-hero-photo">{ph ? <img src={asset(ph.photo)} alt={l.name} /> : <span>{i + 1}</span>}</div>
+        <h1 className="legend-hero-name">{l.name}</h1>
+        <div className="legend-hero-latin" dir="ltr">{st.fullName}</div>
+        <div className="legend-hero-years"><bdi dir="ltr">{l.years}</bdi></div>
+        <div className="legend-tags">
+          <span className="legend-tag">{st.role}</span>
+          {st.nickname && <span className="legend-tag gold">הכינוי: {st.nickname}</span>}
+          {st.extra && <span className="legend-tag">{st.extra}</span>}
+        </div>
+      </section>
+
+      {st.stats && (
+        <div className="legend-stats">
+          {st.stats.map((x) => <div key={x.label}><b>{x.value}</b><span className="small">{x.label}</span></div>)}
+        </div>
+      )}
+
+      {st.sections.map((sec) => (
+        <section key={sec.title} className="card story">
+          <h2 className="card-title">{sec.title}</h2>
+          {sec.paras.map((t, k) => <p key={k}>{t}</p>)}
+        </section>
+      ))}
+
+      {st.note && <div className="card small legend-note">ⓘ {st.note}</div>}
+
+      <div className="legend-nav">
+        {prev !== undefined ? <Link to={`/history/legends/${prev}`} className="chip">› {legends[prev - 1].name}</Link> : <span />}
+        {next !== undefined ? <Link to={`/history/legends/${next}`} className="chip">{legends[next - 1].name} ‹</Link> : <span />}
+      </div>
+      <div className="small" style={{ textAlign: 'center' }}>
+        {legendStoriesSource}
+        {ph && <> · <a href={ph.credit} target="_blank" rel="noreferrer" style={{ color: 'var(--gold)' }}>זכויות התמונה ↗</a></>}
+      </div>
+    </main>
   );
 }
 

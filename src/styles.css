@@ -500,3 +500,23 @@ button { font: inherit; color: inherit; }
 .story p { margin: 0 0 10px; line-height: 1.65; font-size: 15px; }
 .story p:last-child { margin-bottom: 0; }
 .story-born { text-align: center; font-weight: 700; color: var(--gold); margin: 2px 0 12px; }
+
+/* Legends: clickable rows and full story page */
+.legend-link { color: inherit; text-decoration: none; }
+.legend-body { flex: 1; min-width: 0; }
+.legend-more { display: inline-block; margin-top: 4px; font-size: 13px; font-weight: 700; color: var(--gold); }
+.legend-hero { text-align: center; padding-top: 18px; }
+.legend-hero-photo { width: 120px; height: 120px; margin: 0 auto 10px; border-radius: 50%; overflow: hidden; border: 3px solid var(--gold); background: #fff; display: grid; place-items: center; font-size: 40px; font-weight: 900; color: #0a1128; }
+.legend-hero-photo img { width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.legend-hero-name { margin: 0; font-size: 26px; font-weight: 900; }
+.legend-hero-latin { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.legend-hero-years { color: var(--gold); font-weight: 800; font-size: 18px; margin-top: 6px; }
+.legend-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 10px; }
+.legend-tag { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.07); color: var(--text); }
+.legend-tag.gold { background: rgba(237, 187, 0, 0.15); color: var(--gold); }
+.legend-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.legend-stats > div { display: flex; flex-direction: column; align-items: center; padding: 12px 6px; border-radius: 14px; background: var(--card); border: 1px solid var(--line); text-align: center; }
+.legend-stats b { font-size: 26px; color: var(--gold); font-weight: 900; }
+.legend-note { color: var(--muted); }
+.legend-nav { display: flex; justify-content: space-between; gap: 8px; margin: 6px 0 10px; }
+.legend-nav .chip { text-decoration: none; font-size: 13px; }
