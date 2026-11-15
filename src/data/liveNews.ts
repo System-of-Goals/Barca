@@ -7,10 +7,12 @@ import type { NewsItem } from './types';
 // if none answers, the robot's news are shown as before.
 const CHANNEL = 'barcamaniail';
 const PAGE = `https://t.me/s/${CHANNEL}`;
+// json: the relay wraps the page as { contents: "<html…>" }.
 const RELAYS = [
-  `https://api.allorigins.win/raw?url=${encodeURIComponent(PAGE)}`,
-  `https://corsproxy.io/?url=${encodeURIComponent(PAGE)}`,
+  { url: `https://api.allorigins.win/raw?url=${encodeURIComponent(PAGE)}`, json: false },
+  { url: `https://api.allorigins.win/get?url=${encodeURIComponent(PAGE)}`, json: true },
 ];
+export let lastLiveError = '';
 const EVERY = 3 * 60 * 1000; // while the page is open
 
 const decode = (html: string) => {
@@ -49,20 +51,30 @@ function parseChannel(html: string): NewsItem[] {
 }
 
 async function fetchLive(): Promise<NewsItem[]> {
+  const errors: string[] = [];
   for (const relay of RELAYS) {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 8000);
+    const t = setTimeout(() => ctrl.abort(), 20000);
     try {
-      const r = await fetch(relay, { signal: ctrl.signal, cache: 'no-store' });
-      if (!r.ok) continue;
-      const posts = parseChannel(await r.text());
-      if (posts.length) return posts;
-    } catch {
-      // try the next relay
+      const r = await fetch(relay.url, { signal: ctrl.signal, cache: 'no-store' });
+      if (!r.ok) {
+        errors.push(`HTTP ${r.status}`);
+        continue;
+      }
+      const html = relay.json ? String((await r.json()).contents ?? '') : await r.text();
+      const posts = parseChannel(html);
+      if (posts.length) {
+        lastLiveError = '';
+        return posts;
+      }
+      errors.push('אין פוסטים בתשובה');
+    } catch (e) {
+      errors.push(ctrl.signal.aborted ? 'לא ענה בזמן' : 'נחסם');
     } finally {
       clearTimeout(t);
     }
   }
+  lastLiveError = errors.join(' / ');
   return [];
 }
 
