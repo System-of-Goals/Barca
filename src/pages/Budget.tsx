@@ -45,6 +45,7 @@ export function Budget({ data }: { data: SiteData }) {
   const max = Math.max(...revenueBySeason.map((r) => r.revenue));
   const capUse = Math.round((salaryCap.wageBillEstimate / salaryCap.limit) * 100);
   const [wageSort, setWageSort] = useState<'fixed' | 'value'>('fixed');
+  const squadValue = Math.round(contracts.reduce((sum, c) => sum + c.value, 0) * 10) / 10;
   const rows = [...contracts].sort((a, b) => (wageSort === 'value' ? b.value - a.value : b.fixed - a.fixed));
 
   return (
@@ -111,6 +112,11 @@ export function Budget({ data }: { data: SiteData }) {
         <div className="wage-totals">
           <div><span className="small">כל הסגל – שכר קבוע</span><b>€{payroll.fixed} מ׳</b>{rate && <span className="small">כ-₪{Math.round(payroll.fixed * rate)} מ׳</span>}</div>
           <div><span className="small">כולל בונוסים</span><b>€{payroll.total} מ׳</b>{rate && <span className="small">כ-₪{Math.round(payroll.total * rate)} מ׳</span>}</div>
+          <div className={`wage-total-value${wageSort === 'value' ? ' on' : ''}`}>
+            <span className="small">📈 שווי השוק של כל הסגל</span>
+            <b>€{squadValue >= 1000 ? `${(squadValue / 1000).toFixed(2)} מיליארד` : `${squadValue} מ׳`}</b>
+            {rate && <span className="small">כ-₪{(squadValue * rate / 1000).toFixed(1)} מיליארד · {contracts.length} שחקנים</span>}
+          </div>
         </div>
 
         <div className="chips">
@@ -118,12 +124,12 @@ export function Budget({ data }: { data: SiteData }) {
           <button className={wageSort === 'value' ? 'chip active' : 'chip'} onClick={() => setWageSort('value')}>לפי שווי שוק</button>
         </div>
 
-        <div className="wage-table">
+        <div className={`wage-table sort-${wageSort}`}>
           <div className="wage-row wage-head">
             <span className="wage-rank">#</span>
             <span className="wage-player">שחקן</span>
-            <span className="wage-num">שכר לשנה</span>
-            <span className="wage-num">שווי שוק</span>
+            <span className="wage-num wage-fixed">שכר לשנה</span>
+            <span className="wage-num wage-value">שווי שוק</span>
           </div>
           {rows.map((c, i) => {
             const p = squad?.players.find((x) => x.number === c.number);
@@ -137,7 +143,7 @@ export function Budget({ data }: { data: SiteData }) {
                     <span className="small">עם בונוס <bdi dir="ltr">€{c.total}</bdi></span>
                   </span>
                 </span>
-                <span className="wage-num wage-main">€{c.fixed}</span>
+                <span className="wage-num wage-fixed">€{c.fixed}</span>
                 <span className="wage-num wage-value">€{c.value}</span>
               </>
             );

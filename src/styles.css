@@ -489,5 +489,9 @@ button { font: inherit; color: inherit; }
 .wage-name .small { font-size: 11px; white-space: nowrap; }
 .wage-num { text-align: left; font-variant-numeric: tabular-nums; font-size: 13px; direction: ltr; }
 .wage-head .wage-num { direction: rtl; text-align: center; line-height: 1.2; }
-.wage-main { color: var(--gold); font-weight: 800; font-size: 15px; }
-.wage-value { color: var(--muted); }
+/* The column the table is sorted by is gold and bold; the other is muted. */
+.wage-num.wage-fixed, .wage-num.wage-value { color: var(--muted); font-weight: 600; font-size: 13px; }
+.sort-fixed .wage-row:not(.wage-head) .wage-fixed, .sort-value .wage-row:not(.wage-head) .wage-value { color: var(--gold); font-weight: 800; font-size: 15px; }
+.sort-fixed .wage-head .wage-fixed, .sort-value .wage-head .wage-value { color: var(--gold); }
+.wage-total-value { grid-column: 1 / -1; border: 1px solid transparent; }
+.wage-total-value.on { border-color: var(--gold); background: rgba(237, 187, 0, 0.08) !important; }
