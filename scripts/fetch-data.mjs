@@ -517,12 +517,21 @@ async function legendPhotos() {
   // Fallback for legends whose Wikidata entry has no photo: the lead image of their English Wikipedia
   // article, used only when it is a free file on Wikimedia Commons.
   const noWikidata = LEGENDS.filter((name) => !rows.some((r) => v(r, 'title') === name));
+  const ALT_TITLES = { Xavi: ['Xavi', 'Xavi Hernández', 'Xavier Hernández'], 'Luis Suárez': ['Luis Suárez', 'Luis Suárez (footballer, born 1987)'] };
   const pageImages = {};
-  if (noWikidata.length) {
-    const q = new URLSearchParams({ action: 'query', prop: 'pageimages', piprop: 'name', format: 'json', formatversion: '2', redirects: '1', titles: noWikidata.join('|') });
-    const j = await fetch(`https://en.wikipedia.org/w/api.php?${q}`, { headers: WD_HEADERS }).then((r) => r.json()).catch(() => ({}));
-    const back = new Map([...(j.query?.normalized ?? []), ...(j.query?.redirects ?? [])].map((x) => [x.to, x.from]));
-    for (const pg of j.query?.pages ?? []) if (pg.pageimage) pageImages[back.get(pg.title) ?? pg.title] = pg.pageimage;
+  for (const name of noWikidata) {
+    for (const wiki of ['en', 'es']) {
+      const titles = ALT_TITLES[name] ?? [name];
+      const q = new URLSearchParams({ action: 'query', prop: 'pageimages', piprop: 'name', format: 'json', formatversion: '2', redirects: '1', titles: titles.join('|') });
+      const j = await fetch(`https://${wiki}.wikipedia.org/w/api.php?${q}`, { headers: WD_HEADERS }).then((r) => r.json()).catch(() => ({}));
+      const pages = j.query?.pages ?? [];
+      console.log(`legend photo lookup ${name} @${wiki}: ${pages.map((pg) => `${pg.title}=${pg.pageimage ?? (pg.missing ? 'missing' : 'none')}`).join(', ') || 'no answer'}`);
+      const hit = pages.find((pg) => pg.pageimage);
+      if (hit) {
+        pageImages[name] = hit.pageimage;
+        break;
+      }
+    }
   }
   const out = {};
   const missing = [];
