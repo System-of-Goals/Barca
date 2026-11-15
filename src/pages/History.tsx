@@ -18,6 +18,7 @@ import {
   todayInHistory,
 } from '../data/history';
 import { legendStories, legendStoriesSource } from '../data/legendStories';
+import { legendHonours, legendHonoursNote } from '../data/legendHonours';
 
 const Paragraphs = ({ items }: { items: string[] }) => (
   <section className="card prose">{items.map((t, i) => <p key={i}>{t}</p>)}</section>
@@ -58,6 +59,7 @@ export function LegendPage() {
   const st = legendStories[i];
   if (!l || !st) return <main className="page"><h1 className="page-title">האגדה לא נמצאה</h1><Link to="/history/legends" className="more">לכל האגדות ›</Link></main>;
   const ph = photos?.[i];
+  const hon = legendHonours[i];
   const prev = i > 0 ? i : undefined;
   const next = i < legends.length - 1 ? i + 2 : undefined;
   return (
@@ -78,10 +80,27 @@ export function LegendPage() {
         </div>
       </section>
 
-      {st.stats && (
-        <div className="legend-stats">
-          {st.stats.map((x) => <div key={x.label}><b>{x.value}</b><span className="small">{x.label}</span></div>)}
-        </div>
+      {hon && (
+        <>
+          <div className="legend-stats">
+            <div><b>{hon.apps}</b><span className="small">הופעות רשמיות</span></div>
+            <div><b>{hon.goals}</b><span className="small">שערים</span></div>
+          </div>
+          <div className="legend-stats three">
+            <div><b>{hon.liga}</b><span className="small">אליפויות ספרד</span></div>
+            <div><b>{hon.copa}</b><span className="small">גביעי המלך</span></div>
+            <div><b>{hon.ucl}</b><span className="small">ליגת האלופות</span></div>
+          </div>
+          <section className="card">
+            <h2 className="card-title">🌍 תארים עם הנבחרת</h2>
+            {hon.national.map((t) => <div key={t} className="honour-item">🏆 {t}</div>)}
+          </section>
+          <section className="card">
+            <h2 className="card-title">⭐ פרסים אישיים</h2>
+            {hon.personal.map((t) => <div key={t} className="honour-item">⭐ {t}</div>)}
+            {hon.note && <div className="small" style={{ marginTop: 8 }}>ⓘ {hon.note}</div>}
+          </section>
+        </>
       )}
 
       {st.sections.map((sec) => (
@@ -98,7 +117,7 @@ export function LegendPage() {
         {next !== undefined ? <Link to={`/history/legends/${next}`} className="chip">{legends[next - 1].name} ‹</Link> : <span />}
       </div>
       <div className="small" style={{ textAlign: 'center' }}>
-        {legendStoriesSource}
+        {legendHonoursNote} {legendStoriesSource}
         {ph && <> · <a href={ph.credit} target="_blank" rel="noreferrer" style={{ color: 'var(--gold)' }}>זכויות התמונה ↗</a></>}
       </div>
     </main>

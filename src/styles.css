@@ -520,3 +520,5 @@ button { font: inherit; color: inherit; }
 .legend-note { color: var(--muted); }
 .legend-nav { display: flex; justify-content: space-between; gap: 8px; margin: 6px 0 10px; }
 .legend-nav .chip { text-decoration: none; font-size: 13px; }
+.legend-stats.three { grid-template-columns: 1fr 1fr 1fr; }
+.legend-stats.three b { font-size: 22px; }
