@@ -6,6 +6,7 @@ import { asset } from '../data/useSiteData';
 import { useJson } from '../data/useJson';
 import { formatDate } from '../lib/format';
 import { contractFor, contractSources } from '../data/contracts';
+import { honoursFor, honoursSource } from '../data/honours';
 import { Money } from './Budget';
 import { useSiteData } from '../data/useSiteData';
 
@@ -138,11 +139,17 @@ function StatTile({ value, label, star }: { value: string | number; label: strin
   );
 }
 
+// Keeps "×3" reading correctly inside Hebrew text.
+const Times = ({ text }: { text: string }) => (
+  <>{text.split(/(×\d+)/).map((part, i) => (/^×\d+$/.test(part) ? <bdi key={i} dir="ltr">{part}</bdi> : part))}</>
+);
+
 export function PlayerPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const squad = useJson<Squad>('players.json');
   const [tab, setTab] = useState<'season' | 'career' | 'titles' | 'contract'>('season');
+  const [hTab, setHTab] = useState<'team' | 'personal'>('team');
   const site = useSiteData();
 
   if (squad === undefined) return <main className="page"><div className="soon">טוען…</div></main>;
@@ -241,41 +248,62 @@ export function PlayerPage() {
         </section>
       )}
 
-      {tab === 'titles' && (
-        <>
-          <section className="card">
-            <h2 className="card-title">🏆 תארים עם ברצלונה</h2>
-            {p.titles?.length ? (
-              p.titles.map((t) => (
-                <div key={t.competition} className="title-row">
-                  <span className="title-count">{t.seasons.length}</span>
-                  <div>
-                    <div className="spell-team">{t.competition}</div>
-                    <div className="small"><bdi dir="ltr">{t.seasons.join(' · ')}</bdi></div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="soon">עוד לא זכה בתארים עם ברצלונה</div>
-            )}
-            <div className="small" style={{ marginTop: 10 }}>לפי התארים של ברצלונה והשנים שבהן השחקן היה במועדון (מוויקיפדיה). ייתכנו פערים קטנים.</div>
-          </section>
-          <section className="card">
-            <h2 className="card-title">⭐ פרסים אישיים</h2>
-            {p.awards?.length ? (
-              p.awards.map((a, i) => (
-                <div key={i} className="stand-row">
-                  <span className="stand-comp">{a.name}</span>
-                  {a.year && <span className="gold">{a.year}</span>}
-                </div>
-              ))
-            ) : (
-              <div className="soon">לא נמצאו פרסים אישיים בוויקיפדיה</div>
-            )}
-          </section>
-        </>
-      )}
+      {tab === 'titles' && (() => {
+        const h = honoursFor(p.number);
+        return (
+          <>
+            <div className="chips">
+              <button className={hTab === 'team' ? 'chip active' : 'chip'} onClick={() => setHTab('team')}>🏆 תארים קבוצתיים</button>
+              <button className={hTab === 'personal' ? 'chip active' : 'chip'} onClick={() => setHTab('personal')}>⭐ תארים אישיים</button>
+            </div>
 
+            {hTab === 'team' && (
+              <section className="card">
+                {h ? (
+                  <>
+                    {h.note && <div className="small" style={{ marginBottom: 8 }}>{h.note}</div>}
+                    {h.team.length === 0 && <div className="soon">עוד לא זכה בתארים בקבוצה בוגרת</div>}
+                    {h.team.map((g) => (
+                      <div key={g.with} className="honour-group">
+                        <h2 className={`card-title honour-with ${g.kind}`}>
+                          {g.kind === 'barca' ? '🔵🔴 עם ברצלונה' : g.kind === 'national' ? `🌍 עם ${g.with}` : `🏟️ עם ${g.with}`}
+                          {g.kind !== 'barca' && <span className="honour-tag">{g.kind === 'national' ? 'נבחרת' : 'קבוצה קודמת'}</span>}
+                        </h2>
+                        {g.items.map((t) => <div key={t} className="honour-item">🏆 <Times text={t} /></div>)}
+                      </div>
+                    ))}
+                  </>
+                ) : p.titles?.length ? (
+                  <>
+                    <h2 className="card-title">🔵🔴 עם ברצלונה</h2>
+                    {p.titles.map((t) => <div key={t.competition} className="honour-item">🏆 {t.competition} ×{t.seasons.length} · <bdi dir="ltr">{t.seasons.join(' · ')}</bdi></div>)}
+                  </>
+                ) : (
+                  <div className="soon">עוד לא זכה בתארים</div>
+                )}
+              </section>
+            )}
+
+            {hTab === 'personal' && (
+              <section className="card">
+                {h ? (
+                  h.personal.length ? h.personal.map((a) => <div key={a} className="honour-item">⭐ <Times text={a} /></div>) : <div className="soon">אין פרס אישי מרכזי</div>
+                ) : p.awards?.length ? (
+                  p.awards.map((a, i) => <div key={i} className="honour-item">⭐ {a.name}{a.year ? ` · ${a.year}` : ''}</div>)
+                ) : (
+                  <div className="soon">אין פרס אישי מרכזי</div>
+                )}
+              </section>
+            )}
+
+            {h && (
+              <div className="small" style={{ textAlign: 'center' }}>
+                מקור: <a href={honoursSource.url} target="_blank" rel="noreferrer" style={{ color: 'var(--gold)' }}>{honoursSource.name} ↗</a> · עודכן {honoursSource.updated}
+              </div>
+            )}
+          </>
+        );
+      })()}
       {tab === 'contract' && (() => {
         const c = contractFor(p.number);
         const rate = site?.eurIls;

@@ -459,3 +459,10 @@ button { font: inherit; color: inherit; }
 .zone-legend i.z-uel { background: #f59e0b; }
 .zone-legend i.z-uecl { background: #22c55e; }
 .zone-legend i.z-down { background: #ef4444; }
+
+/* Player honours */
+.honour-group + .honour-group { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 10px; }
+.honour-with { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.honour-with.club, .honour-with.national { color: var(--text); }
+.honour-tag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); color: var(--muted); }
+.honour-item { padding: 6px 0; font-weight: 600; }
